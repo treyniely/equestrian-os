@@ -47,6 +47,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
                     throw Error('Customer account not found.');
             }
         }
+        if(kind==='academy')details.cancellationHours=z.coerce.number().int().min(0).max(720).optional().default(previous?.details.cancellationHours??24).parse(raw.cancellationHours);
         if(['trainer','horse','academy'].includes(kind)){
           details.description=z.string().max(3000).optional().default('').parse(raw.description);
           details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid photo').optional().default('').parse(raw.photoId);
@@ -119,21 +120,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const session = await db.prepare("SELECT * FROM sessions WHERE tenant=? AND id=? AND status='scheduled'").bind(tenant, b.session).first<Row>();
         if (!session)
             throw Error('Session unavailable.');
-        const assigned=(await db.prepare('SELECT resource,kind FROM reservations WHERE tenant=? AND session=?').bind(tenant,b.session).all<Row>()).results;for(const assignment of assigned){const r=await resource(db,tenant,assignment.resource,assignment.kind);if(!withinAvailability(session.start,session.end,r.details.availability))throw Error(r.name+' is no longer available for new registrations at this time.');}
-        const rider = await resource(db, tenant, b.rider, 'rider');
-        const program = await resource(db, tenant, session.program, 'lesson');
-        if (program.details.template === 'party')
-            throw Error('Use the party organizer reservation for this session.');
-        if (program.details.level) {
-            const level = await resource(db, tenant, program.details.level, 'level');
-            if (rider.details.level !== level.name)
-                throw Error('This rider does not meet the program’s selected level.');
-        }
-        const trainerReservation=await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,b.session).first<Row>();
-        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(trainer.details.suitableLevels?.length&&!trainer.details.suitableLevels.includes(rider.details.level))throw Error('This instructor does not teach this rider’s level.');}
-        const horses = (await db.prepare("SELECT r.* FROM resources r JOIN reservations v ON r.id=v.resource AND r.tenant=v.tenant WHERE v.tenant=? AND v.session=? AND v.kind='horse'").bind(tenant, b.session).all<Row>()).results;
-        if (rider.details.level === 'Beginner' && horses.some(h => JSON.parse(h.details).level === 'Advanced'))
-            throw Error('A reserved horse is not suitable for a beginner rider.');
+        const {rider,program}=await validateEnrollment(db,tenant,session,b.rider);
         await db.batch([db.prepare('INSERT INTO enrollments VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, b.session, b.rider), log('Added ' + rider.name + ' to ' + program.name)]);
         return;
     }
@@ -165,4 +152,24 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         return;
     }
     throw Error('Unsupported action.');
+}
+
+export async function validateEnrollment(db:D1Database,tenant:string,session:Row,riderId:string){
+        const assigned=(await db.prepare('SELECT resource,kind FROM reservations WHERE tenant=? AND session=?').bind(tenant,session.id).all<Row>()).results;for(const assignment of assigned){const r=await resource(db,tenant,assignment.resource,assignment.kind);if(!withinAvailability(session.start,session.end,r.details.availability))throw Error(r.name+' is no longer available for new registrations at this time.');}
+        const rider = await resource(db, tenant, riderId, 'rider');
+        const program = await resource(db, tenant, session.program, 'lesson');
+        if (program.details.template === 'party')
+            throw Error('Use the party organizer reservation for this session.');
+        if (program.details.level) {
+            const level = await resource(db, tenant, program.details.level, 'level');
+            if (rider.details.level !== level.name)
+                throw Error('This rider does not meet the program’s selected level.');
+        }
+        const trainerReservation=await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,session.id).first<Row>();
+        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(trainer.details.suitableLevels?.length&&!trainer.details.suitableLevels.includes(rider.details.level))throw Error('This instructor does not teach this rider’s level.');}
+        const horses = (await db.prepare("SELECT r.* FROM resources r JOIN reservations v ON r.id=v.resource AND r.tenant=v.tenant WHERE v.tenant=? AND v.session=? AND v.kind='horse'").bind(tenant, session.id).all<Row>()).results;
+        if (rider.details.level === 'Beginner' && horses.some(h => JSON.parse(h.details).level === 'Advanced'))
+            throw Error('A reserved horse is not suitable for a beginner rider.');
+
+return {rider,program};
 }

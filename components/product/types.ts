@@ -4,6 +4,7 @@ export type Resource = {
     kind: string;
     name: string;
     details: {
+        cancellationHours?:number;
         level?: string;
         duration?: number;
         capacity?: number;

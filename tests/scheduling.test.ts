@@ -1,0 +1,10 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {validateBooking,overlaps} from '../domain/scheduling.ts';
+const resources=['rider','trainer','horse','arena','lesson'].map(kind=>({id:kind,kind,name:kind,details:{level:'Beginner',open:8,close:18}}));
+const booking={id:'b',rider:'rider',trainer:'trainer',horse:'horse',arena:'arena',lesson:'lesson',start:Date.parse('2026-11-02T09:00:00Z'),end:Date.parse('2026-11-02T09:45:00Z'),status:'confirmed'};
+test('valid booking passes',()=>assert.doesNotThrow(()=>validateBooking(booking,resources,[])));
+for(const kind of ['rider','trainer','horse','arena'] as const)test(kind+' overlap rejected',()=>assert.throws(()=>validateBooking(booking,resources,[{...booking,id:'other',rider:'other-rider',trainer:'other-trainer',horse:'other-horse',arena:'other-arena',[kind]:booking[kind]}]),/conflicts/));
+test('back to back lessons do not overlap',()=>assert.equal(overlaps(booking,{start:booking.end,end:booking.end+60000}),false));
+test('canceled lessons release resources',()=>assert.doesNotThrow(()=>validateBooking(booking,resources,[{...booking,id:'other',status:'canceled'}])));
+test('unavailable hours rejected',()=>assert.throws(()=>validateBooking({...booking,start:Date.parse('2026-11-02T07:00:00Z')},resources,[]),/hours/));
+test('unknown resource rejected',()=>assert.throws(()=>validateBooking({...booking,horse:'foreign'},resources,[]),/valid horse/));
+test('advanced horse cannot serve beginner',()=>assert.throws(()=>validateBooking(booking,resources.map(r=>r.kind==='horse'?{...r,details:{...r.details,level:'Advanced'}}:r),[]),/suitable/));

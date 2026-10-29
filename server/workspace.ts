@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import {withinAvailability,isTimeZone} from '../domain/availability.ts';
+import {withinAvailability,isTimeZone,isCalendarDate} from '../domain/availability.ts';
 import {photoIdPattern} from '../domain/photos.ts';
 import { templates } from '../domain/programs.ts';
 export type Row = Record<string, any>;
@@ -53,7 +53,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         if(['trainer','horse'].includes(kind)){
           delete details.dailyLimitMinutes;delete details.restMinutes;
-          const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7)}).optional().parse(raw.availability);
+          const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
           if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');}details.availability=hours;}
           if(kind==='trainer'){details.suitableLevels=z.array(nameSchema).max(50).optional().default([]).parse(raw.suitableLevels);}
         }

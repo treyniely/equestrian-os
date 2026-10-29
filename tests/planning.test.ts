@@ -1,0 +1,6 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {horseAvailability,scheduledMinutes} from '../domain/horse-planning.ts';import {imageType} from '../domain/photos.ts';
+const start=Date.parse('2026-11-02T09:00:00Z'),work=[{start,end:start+3600000}];
+test('daily usage and configured limit',()=>{assert.equal(scheduledMinutes(work,'2026-11-02'),60);assert.equal(scheduledMinutes(work,'2026-11-03'),0);assert.match(horseAvailability(work,start+7200000,start+10800000,90),/limit/);});
+test('no configured limit does not imply a medical safe limit',()=>assert.equal(horseAvailability(work,start+7200000,start+10800000,null),''));
+test('rest buffer and overlap suggestions',()=>{assert.match(horseAvailability(work,start,start+60000,null),/booked/);assert.match(horseAvailability(work,start+3600000,start+7200000,null,30),/Rest/);assert.equal(horseAvailability(work,start+5400000,start+9000000,null,30),'');});
+test('uploads reject SVG or disguised HTML signatures',()=>{assert.equal(imageType(new TextEncoder().encode('<svg></svg>')),null);assert.equal(imageType(new Uint8Array([255,216,255,0])),'image/jpeg');assert.equal(imageType(new Uint8Array([137,80,78,71,13,10,26,10])),'image/png');});

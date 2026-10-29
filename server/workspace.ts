@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {photoIdPattern} from '../domain/photos.ts';
 import { templates } from '../domain/programs.ts';
 export type Row = Record<string, any>;
 export const nameSchema = z.string().trim().min(1).max(100);
@@ -22,7 +23,9 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     if (action === 'resource' || action === 'program') {
         const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'academy']).parse(raw.kind);
         const name = nameSchema.parse(raw.name);
-        let details: Row = { open: 8, close: 18 };
+        const resourceId=optionalId.parse(raw.id);
+        const previous=resourceId?await resource(db,tenant,resourceId,kind):null;
+        let details: Row = {...(previous?.details??{open:8,close:18})};
         if (kind === 'lesson') {
             const t = templates.find(t => t.id === raw.template);
             if (!t)
@@ -43,7 +46,23 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
                     throw Error('Customer account not found.');
             }
         }
-        await db.batch([db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, kind, name, JSON.stringify(details)), log('Added ' + (kind === 'lesson' ? 'program' : kind) + ': ' + name)]);
+        if(['trainer','horse'].includes(kind)){
+          details.description=z.string().max(3000).optional().default('').parse(raw.description);
+          details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid photo').optional().default('').parse(raw.photoId);
+        }
+        if(kind==='horse'){
+          details.dailyLimitMinutes=raw.dailyLimitMinutes===null||raw.dailyLimitMinutes===''||raw.dailyLimitMinutes===undefined?null:z.coerce.number().int().min(15).max(720).parse(raw.dailyLimitMinutes);
+          details.restMinutes=z.coerce.number().int().min(0).max(720).optional().default(0).parse(raw.restMinutes);
+        }
+        if(kind==='rider'){
+          details.preferredHorses=z.array(id).max(3).optional().default([]).parse(raw.preferredHorses);
+          if(new Set(details.preferredHorses).size!==details.preferredHorses.length)throw Error('Choose each favorite horse once.');
+          for(const horse of details.preferredHorses)await resource(db,tenant,horse,'horse');
+          details.preferredTrainer=optionalId.parse(raw.preferredTrainer);if(details.preferredTrainer)await resource(db,tenant,details.preferredTrainer,'trainer');
+        }
+        const recordId=resourceId||crypto.randomUUID();
+        const write=resourceId?db.prepare('UPDATE resources SET name=?,details=? WHERE tenant=? AND id=?').bind(name,JSON.stringify(details),tenant,recordId):db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(recordId,tenant,kind,name,JSON.stringify(details));
+        await db.batch([write,log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
         return;
     }
     if (action === 'customer') {

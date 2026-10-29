@@ -14,6 +14,7 @@ export type Resource = {
         group?: string;
         customer?: string;
         discipline?: string;
+        description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;
     };
 };
 export type Session = {

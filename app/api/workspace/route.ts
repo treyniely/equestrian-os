@@ -44,6 +44,6 @@ export async function POST(req: Request) {
     }
     catch (e) {
         const message = e instanceof ZodError ? 'Please check the form fields and try again.' : e instanceof Error ? e.message : 'Unable to save';
-        return json({ error: message.includes('resource_conflict') || message.includes('rider_conflict') ? 'A resource or rider is already booked at that time.' : message.includes('session_full') ? 'This session has no remaining spots.' : message.includes('UNIQUE') ? 'This registration or request already exists.' : message.includes('D1_') ? 'Unable to save. Refresh and try again.' : message }, message === 'AUTH' ? 401 : 400);
+        return json({ error: message.includes('horse_daily_limit')?'This horse would exceed its configured daily work limit. Choose another horse or time.':message.includes('horse_rest')?'This horse needs its configured rest buffer between sessions.':message.includes('resource_conflict') || message.includes('rider_conflict') ? 'A resource or rider is already booked at that time.' : message.includes('session_full') ? 'This session has no remaining spots.' : message.includes('UNIQUE') ? 'This registration or request already exists.' : message.includes('D1_') ? 'Unable to save. Refresh and try again.' : message }, message === 'AUTH' ? 401 : 400);
     }
 }

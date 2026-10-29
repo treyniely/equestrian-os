@@ -5,12 +5,13 @@ import type { State, Save, Membership } from './types';
 import Dialog from './dialog';
 const segments = ['All customers', 'Needs attention', 'Active members', 'Trials & inquiries', 'Inactive'];
 const billingNames: Record<string, string> = { none: 'No purchases yet', current: 'Current', failed: 'Payment failed', overdue: 'Balance overdue' };
-export default function Customers({ state, save, busy }: {
+export default function Customers({ state, save, busy, startCreate=false }: {
     state: State;
     save: Save;
     busy: boolean;
+ startCreate?:boolean;
 }) {
-    const [segment, setSegment] = useState('All customers'), [query, setQuery] = useState(''), [customer, setCustomer] = useState<Customer | null | undefined>(undefined), [compose, setCompose] = useState(false), [kind, setKind] = useState('message'), [channel, setChannel] = useState('email'), [member, setMember] = useState<Membership | null | undefined>(undefined), [preview, setPreview] = useState(false);
+    const [segment, setSegment] = useState('All customers'), [query, setQuery] = useState(''), [customer, setCustomer] = useState<Customer | null | undefined>(startCreate?null:undefined), [compose, setCompose] = useState(false), [kind, setKind] = useState('message'), [channel, setChannel] = useState('email'), [member, setMember] = useState<Membership | null | undefined>(undefined), [preview, setPreview] = useState(false);
     const activeIds = state.memberships.filter(m => m.status === 'active').map(m => m.customer);
     const people = state.customers.filter(c => inSegment(c, segment, activeIds) && [c.name, c.email, c.phone].join(' ').toLowerCase().includes(query.toLowerCase()));
     const recipients = eligibleRecipients(state.customers, segment, channel, activeIds);

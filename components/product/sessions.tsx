@@ -2,12 +2,13 @@
 import { useRef, useState } from 'react';
 import type { State, Save, Session } from './types';
 import Dialog from './dialog';
-export default function Sessions({ state, save, busy }: {
+export default function Sessions({ state, save, busy, startCreate=false }: {
     state: State;
     save: Save;
     busy: boolean;
+ startCreate?:boolean;
 }) {
-    const [open, setOpen] = useState(false), [programId, setProgram] = useState(''), [detail, setDetail] = useState<Session | null>(null), [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+    const [open, setOpen] = useState(startCreate), [programId, setProgram] = useState(''), [detail, setDetail] = useState<Session | null>(null), [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
     const requestKey = useRef(crypto.randomUUID());
     const programs = state.resources.filter(r => r.kind === 'lesson'), program = programs.find(p => p.id === programId);
     const resources = (kind: string) => state.resources.filter(r => r.kind === kind), name = (id: string) => state.resources.find(r => r.id === id)?.name ?? state.customers.find(c => 'customer:' + c.id === id)?.name ?? 'Unknown';

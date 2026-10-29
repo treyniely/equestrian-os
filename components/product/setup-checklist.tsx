@@ -1,0 +1,7 @@
+'use client';
+import {Check,ChevronRight} from 'lucide-react';
+export type SetupStep={title:string;kind:string;target:string;done:boolean};
+export default function SetupChecklist({steps,onAction}:{steps:SetupStep[];onAction:(step:SetupStep)=>void}){
+ const completed=steps.filter(s=>s.done).length,next=steps.findIndex(s=>!s.done);
+ return <section className="panel setup-checklist"><div className="panel-heading"><div><h2>One step at a time.</h2><p>{completed===steps.length?'Your essentials are ready. You can manage them below.':'We’ll help you get the essentials in place.'}</p></div><span className={completed===steps.length?'completion-label':'setup-progress'}>{completed===steps.length&&<Check size={14} aria-hidden="true"/>}{completed===steps.length?'Setup complete':`${completed} of ${steps.length} complete`}</span></div><div className="checklist">{steps.map((step,i)=><button key={step.kind} onClick={()=>onAction(step)} aria-label={`${step.title}. ${step.done?'Complete. Manage':i===next?'Next step. Start':'Start'}`}><span className={step.done?'check done':'check'} aria-hidden="true">{step.done?<Check size={14}/>:i+1}</span><div className="step-copy"><strong>{step.title}</strong><small>{step.done?'Manage details':i===next?'Your next step':'Ready when you are'}</small></div>{step.done?<span className="completion-label"><Check size={13} aria-hidden="true"/>Complete</span>:i===next?<span className="next-step-label">Next step</span>:null}<ChevronRight className="step-chevron" size={15} aria-hidden="true"/></button>)}</div></section>;
+}

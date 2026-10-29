@@ -14,7 +14,7 @@ export type Resource = {
         group?: string;
         customer?: string;
         discipline?: string;
-        description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;
+        availability?:import('../../domain/availability').Availability;suitableLevels?:string[];description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;
     };
 };
 export type Session = {
@@ -43,6 +43,7 @@ export type Draft = {
     created: number;
 };
 export type State = {
+    team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;
     resources: Resource[];
     bookings: any[];
     customers: Customer[];

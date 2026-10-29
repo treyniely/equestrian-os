@@ -22,6 +22,27 @@
       "when": 1793296778100,
       "tag": "0002_horse_workload",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793297804094,
+      "tag": "0003_use_weekly_availability",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793297899742,
+      "tag": "0004_team_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793298068786,
+      "tag": "0005_multiple_academies",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,13 @@
+# 0.3 — Availability, team access and multiple academies
+
+Trainer suitability is now a set of rider-level checkboxes, enforced for leveled programs and individual rider registration. Trainer and horse profiles have weekly availability windows with IANA time zones. Scheduling and new rider registrations validate these windows server-side. Existing sessions are not silently canceled. Unconfigured profiles retain the previous 08:00–18:00 UTC behavior until edited. Calendar time inputs remain explicitly UTC; recurring session creation and exceptional date overrides remain future work.
+
+Horse workload/rest controls and usage cards are removed. Migration 0003 retires the prior workload guard without modifying its applied migration. Ordinary resource conflicts and rider suitability remain enforced. Old metadata is not used and is removed when a profile is next saved.
+
+Academy Setup supports a square logo upload using the existing private R2 image service. The saved academy name/logo appears in the sidebar. Logo uploads require setup management permission; reads enforce current academy/resource access.
+
+Team & Access: owner remains implicit and immutable; admin/manager/instructor/custom presets with view/manage grants per feature. Grants validated server-side for each write and sensitive data removed from reads. Team managers cannot grant beyond their own permissions or edit themselves. Customer editors without billing management cannot overwrite financial fields. Team changes and invitation acceptance are audited. Invitations use hashed 7-day tokens, email-bound acceptance and one-time activation; no invitation emails are sent. Staff must also be granted access through the separate private Sites gate before accepting. No site audience/access was widened in this release.
+
+Multiple academies: owners can create isolated academy workspaces and switch within one login. Team memberships and permissions apply separately per academy. Server-validated academy selection is stored in an HttpOnly SameSite cookie. Every resource, booking, customer and photo request resolves current membership/ownership on the server. A user can be invited to multiple academies. This is a workspace switcher, not consolidated financial reporting or cross-academy shared resources. Each academy's availability, branding and data remain separate.
+
+Architecture: pure availability/permission modules, separate team/academy services and UI components, no new dependencies. Append-only migrations 0003–0005, preserving existing records. Owner-only private deployment remains the development environment; family self-service is not live. Photo/team/academy browser workflows still need authenticated staging QA; managed preview connection has been unavailable.

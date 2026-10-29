@@ -1,15 +1,16 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, CalendarDays, Users, UserRound, BookOpen, Layers, MapPin, Settings, ShieldCheck, Menu, LogOut, ArrowUpRight, Check, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, UserRound, BookOpen, BookUser, MapPin, Settings, ShieldCheck, Menu, LogOut, ArrowUpRight, Check, ChevronRight } from 'lucide-react';
 import type { State, Save } from './types';
 import Dialog, { FeedbackContext } from './dialog';
 import Programs from './programs';
 import Customers from './customers';
 import Sessions from './sessions';
 import Profiles from './profiles';
+import HorseIcon from './horse-icon';
 import SetupChecklist, {type SetupStep} from './setup-checklist';
 const empty: State = { resources: [], bookings: [], customers: [], memberships: [], sessions: [], enrollments: [], reservations: [], drafts: [], audit: [] };
-const nav = [['Overview', LayoutDashboard], ['Calendar', CalendarDays], ['Customers', Users], ['Programs & Services', BookOpen], ['Riders', Users], ['Horses', Layers], ['Trainers', UserRound], ['Riding spaces', MapPin], ['Academy setup', Settings], ['Roadmap', ShieldCheck]] as const;
+const nav = [['Overview', LayoutDashboard], ['Calendar', CalendarDays], ['Customers', BookUser], ['Programs & Services', BookOpen], ['Riders', Users], ['Horses', HorseIcon], ['Trainers', UserRound], ['Riding spaces', MapPin], ['Academy setup', Settings], ['Roadmap', ShieldCheck]] as const;
 const kinds: Record<string, string> = { Riders: 'rider', Horses: 'horse', Trainers: 'trainer', 'Riding spaces': 'arena' };
 export default function Workspace() {
     const [state, setState] = useState<State>(empty), [view, setView] = useState('Overview'), [loading, setLoading] = useState(true), [auth, setAuth] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [mobile, setMobile] = useState(false), [resourceKind, setResourceKind] = useState(''), [query, setQuery] = useState(''), [intent,setIntent]=useState('');

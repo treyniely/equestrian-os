@@ -1,0 +1,9 @@
+# 0.8 — Logo-derived color suggestions
+
+Academy Setup's branding panel samples the saved academy logo automatically, in the browser, using a bounded 96×96 canvas. Transparent and near-white background pixels are ignored, coarse color buckets are averaged and perceptually distinct samples are limited to four. Hex suggestions are estimates from raster pixels, not authoritative brand-guide values; the existing manual picker/hex field remains available. No external AI service, asset transmission or new dependency is used.
+
+Each suggestion previews a button with automatically selected black/white text and its actual text contrast ratio. A darker derived accent is offered when needed for light surfaces. Clicking a sample previews it; Save branding explicitly persists the chosen color through the existing tenant/permission-checked service. Original logo pixels are never modified. Existing logo editing and portal theme behavior are unchanged. Missing/transparent/all-white logos and image read failures explain the manual fallback without blocking branding.
+
+The existing normal-text contrast target is 4.5:1 or higher, referencing WCAG 2.2 SC 1.4.3 (https://www.w3.org/TR/WCAG22/#contrast-minimum). This checks specific color pairs, not ADA legal compliance or full-site WCAG conformance. Other visual, semantic, keyboard, zoom and interaction checks remain necessary.
+
+Validation: check:release passed TypeScript, 63 tests and production build. New tests cover background/transparency exclusion, dominant color selection, empty logos and readable sample text. UI source review covers wrapping suggestion cards and touch-sized buttons. Browser preview remains unavailable; actual uploaded-logo extraction and desktop/mobile visual QA remain unverified. No schema changes; code-only rollback to 0.7 is supported. Owner-private deployment and GitHub source remain unchanged in audience.

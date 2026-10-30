@@ -1,0 +1,1 @@
+export function logoPlacement(width:number,height:number,size=1080){if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0)throw Error('Invalid logo dimensions.');const available=size*.84,scale=Math.min(available/width,available/height),w=width*scale,h=height*scale;return {size,x:(size-w)/2,y:(size-h)/2,width:w,height:h,enlarged:scale>1.1}}

@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {logoPlacement} from '../domain/logo-fit.ts';
+test('wide and tall logos fit completely inside padded 1080 squares without changing proportions',()=>{for(const [w,h] of [[2400,400],[400,2400],[1080,1080]]){const f=logoPlacement(w,h);assert.equal(f.size,1080);assert.ok(f.x>=86&&f.y>=86);assert.ok(f.x+f.width<=994&&f.y+f.height<=994);assert.ok(Math.abs(f.width/f.height-w/h)<.00001)}});
+test('small sources flag enlargement and invalid dimensions are rejected',()=>{assert.equal(logoPlacement(100,100).enlarged,true);assert.equal(logoPlacement(2400,400).enlarged,false);assert.throws(()=>logoPlacement(0,100));assert.throws(()=>logoPlacement(NaN,100))});

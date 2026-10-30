@@ -13,3 +13,6 @@ export function withinAvailability(start:number,end:number,availability?:Availab
 
 /** Business hours/closures always win; unconfigured profiles follow business hours. */
 export function withinBookingAvailability(start:number,end:number,business?:Availability,profile?:Availability){return business?withinAvailability(start,end,business)&&(!profile||withinAvailability(start,end,profile)):withinAvailability(start,end,profile)}
+
+/** Horses follow academy hours and existing reservations, never a personal weekly schedule. */
+export function withinResourceAvailability(kind:string,start:number,end:number,business?:Availability,profile?:Availability){return withinBookingAvailability(start,end,business,kind==='horse'?undefined:profile)}

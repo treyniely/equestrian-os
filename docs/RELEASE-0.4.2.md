@@ -1,0 +1,5 @@
+# 0.4.2 — Customer portal form layout
+
+Signup/account labels were inline and inputs retained browser-default sizing because the original shared form rules only targeted admin dialogs. The shared customer contact and rider forms now have an explicit portal-form class and scoped layout/control styles: stacked fields, full-width inputs, readable read-only email, aligned consent checkboxes, full-width action and mobile 16px input text. The portal navigation explicitly uses a row rather than inheriting the admin navigation column direction. The fix applies to signup, account editing, rider editing and booking filters without changing admin forms.
+
+No dependencies, data model, permissions or booking behavior changed. TypeScript, existing 38 tests and production build passed. Browser preview returned connection refused despite the preview daemon reporting running; visual desktop/mobile verification remains incomplete. No authentication bypass or audience change. Rollback is code-only to 0.4.1; no migrations.

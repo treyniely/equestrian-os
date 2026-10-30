@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {allowsRiderLevel} from '../domain/suitability.ts';
 import {saveFamilyContacts} from './family-contacts.ts';
 import {riderIntakeSchema} from '../domain/rider-intake.ts';
 import {preferredTrainers} from '../domain/preferences.ts';
@@ -64,9 +65,10 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
           delete details.dailyLimitMinutes;delete details.restMinutes;
           const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
           if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');}details.availability=hours;}
-          if(kind==='trainer'){details.suitableLevels=z.array(nameSchema).max(50).optional().default([]).parse(raw.suitableLevels);}
+          if(['trainer','horse'].includes(kind)&&raw.suitableLevels!==undefined){details.suitableLevels=Array.from(new Set(z.array(nameSchema).max(50).parse(raw.suitableLevels)));}if(kind==='horse'&&Array.isArray(details.suitableLevels))delete details.level;
         }
         if(kind==='rider'){
+          if(raw.photoId!==undefined)details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid rider photo').parse(raw.photoId);
           for(const [key,value] of Object.entries(riderIntakeSchema.parse(raw)))if(value!==undefined)details[key]=value;
           details.preferredHorses=z.array(id).max(3).optional().default([]).parse(raw.preferredHorses);
           if(new Set(details.preferredHorses).size!==details.preferredHorses.length)throw Error('Choose each favorite horse once.');
@@ -130,7 +132,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
         const pairs = [['trainer', b.trainer], ['arena', b.arena], ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
-        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinBookingAvailability(b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(kind==='trainer'&&program.details.level&&r.details.suitableLevels?.length){const level=await resource(db,tenant,program.details.level,'level');if(!r.details.suitableLevels.includes(level.name))throw Error('This trainer does not teach the selected program level.');}}
+        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinBookingAvailability(b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
         if ((details.mounted ?? true) && new Set(b.horses).size < capacity)throw Error('Assign one horse for each mounted spot, or lower the program capacity.');
         const sessionId = crypto.randomUUID();
         await db.batch([db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
@@ -188,10 +190,9 @@ export async function validateEnrollment(db:D1Database,tenant:string,session:Row
                 throw Error('This rider does not meet the program’s selected level.');
         }
         const trainerReservation=await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,session.id).first<Row>();
-        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(trainer.details.suitableLevels?.length&&!trainer.details.suitableLevels.includes(rider.details.level))throw Error('This trainer does not teach this rider’s level.');}
+        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(!allowsRiderLevel('trainer',trainer.details,rider.details.level??'Beginner'))throw Error('This trainer does not teach this rider’s level.');}
         const horses = (await db.prepare("SELECT r.* FROM resources r JOIN reservations v ON r.id=v.resource AND r.tenant=v.tenant WHERE v.tenant=? AND v.session=? AND v.kind='horse'").bind(tenant, session.id).all<Row>()).results;
-        if (rider.details.level === 'Beginner' && horses.some(h => JSON.parse(h.details).level === 'Advanced'))
-            throw Error('A reserved horse is not suitable for a beginner rider.');
+        if(horses.some(h=>!allowsRiderLevel('horse',JSON.parse(h.details),rider.details.level??'Beginner')))throw Error('A reserved horse is not suitable for this rider’s level.');
 
 return {rider,program};
 }

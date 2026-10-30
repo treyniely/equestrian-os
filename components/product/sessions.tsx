@@ -1,4 +1,5 @@
 'use client';
+import {allowsRiderLevel} from '../../domain/suitability';
 import { useRef, useState } from 'react';
 import type { State, Save, Session } from './types';
 import Dialog from './dialog';
@@ -18,8 +19,9 @@ export default function Sessions({ state, save, busy, startCreate=false }: {
     const [riderId,setRiderId]=useState(''),[planDate,setPlanDate]=useState(date),[planTime,setPlanTime]=useState('09:00'),[trainerId,setTrainerId]=useState(''),[horseIds,setHorseIds]=useState<string[]>([]),[planNotice,setPlanNotice]=useState('');
     const rider=resources('rider').find(r=>r.id===riderId),start=Date.parse(planDate+'T'+planTime+':00Z'),end=start+(program?.details.duration??45)*60000;
     const business=resources('academy')[0]?.details.availability;
-    const reason=(horse:typeof state.resources[number])=>rider?.details.level==='Beginner'&&horse.details.level==='Advanced'?'Not suitable for this rider':!withinBookingAvailability(start,end,business,horse.details.availability)?'Outside availability':horseAvailability(resourceWork(state,'horse',horse.id),start,end);
-    const trainerAvailable=(id:string)=>{const t=resources('trainer').find(t=>t.id===id);return !!t&&withinBookingAvailability(start,end,business,t.details.availability)&&(!rider||!t.details.suitableLevels?.length||t.details.suitableLevels.includes(rider.details.level??'Beginner'))&&!resourceWork(state,'trainer',id).some(w=>start<w.end&&w.start<end)};
+    const targetLevel=rider?.details.level??resources('level').find(l=>l.id===program?.details.level)?.name;
+    const reason=(horse:typeof state.resources[number])=>targetLevel&&!allowsRiderLevel('horse',horse.details,targetLevel)?'Not suitable for this rider':!withinBookingAvailability(start,end,business,horse.details.availability)?'Outside availability':horseAvailability(resourceWork(state,'horse',horse.id),start,end);
+    const trainerAvailable=(id:string)=>{const t=resources('trainer').find(t=>t.id===id);return !!t&&withinBookingAvailability(start,end,business,t.details.availability)&&(!targetLevel||allowsRiderLevel('trainer',t.details,targetLevel))&&!resourceWork(state,'trainer',id).some(w=>start<w.end&&w.start<end)};
     const suggest=()=>{if(!Number.isFinite(start)||!program){setPlanNotice('Choose an offering, date and time first.');return;}const availableTrainers=resources('trainer').filter(r=>trainerAvailable(r.id));const trainer=preferredTrainers(rider?.details??{}).map(id=>availableTrainers.find(t=>t.id===id)).find(Boolean)??availableTrainers[0];const eligible=resources('horse').filter(h=>!reason(h)).sort((a,b)=>Number(rider?.details.preferredHorses?.includes(b.id)??false)-Number(rider?.details.preferredHorses?.includes(a.id)??false));const count=program.details.mounted===false?0:program.details.capacity??1;setTrainerId(trainer?.id??'');setHorseIds(eligible.slice(0,count).map(h=>h.id));setPlanNotice(!trainer||eligible.length<count?'Not enough eligible resources at this time. Try another time or review capacity.':'Available team suggested. Review the choices before scheduling.');};
     const list = state.sessions.filter(s => new Date(s.start).toISOString().slice(0, 10) === date);
     const current = detail ? state.sessions.find(s => s.id === detail.id) : null;

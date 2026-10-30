@@ -9,6 +9,7 @@ export const templates = [
 ] as const;
 export type Customer = {
     id: string;
+    adult_confirmed?:number;
     name: string;
     email: string;
     phone: string;
@@ -26,4 +27,4 @@ export function inSegment(c: Customer, segment: string, memberIds: string[] = []
     case 'Inactive': return c.stage === 'inactive';
     default: return true;
 } }
-export function eligibleRecipients(customers: Customer[], segment: string, channel: string, memberIds: string[] = []) { return customers.filter(c => inSegment(c, segment, memberIds) && (channel === 'sms' ? Boolean(c.sms_consent && c.phone) : Boolean(c.email_consent && c.email))); }
+export function eligibleRecipients(customers: Customer[], segment: string, channel: string, memberIds: string[] = []) { return customers.filter(c => inSegment(c, segment, memberIds) && !!c.adult_confirmed && (channel === 'sms' ? Boolean(c.sms_consent && c.phone) : Boolean(c.email_consent && c.email))); }

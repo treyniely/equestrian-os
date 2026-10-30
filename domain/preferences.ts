@@ -1,0 +1,1 @@
+export function preferredTrainers(details:{preferredTrainers?:string[];preferredTrainer?:string}){return [...new Set(details.preferredTrainers??(details.preferredTrainer?[details.preferredTrainer]:[]))]}

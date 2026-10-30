@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import {preferredTrainers} from '../domain/preferences.ts';
+import {audiencePreview} from '../domain/audiences.ts';
 import {normalizeBrandColor} from '../domain/branding.ts';
 import {withinAvailability,withinBookingAvailability,isTimeZone,isCalendarDate} from '../domain/availability.ts';
 import {photoIdPattern} from '../domain/photos.ts';
@@ -10,7 +12,7 @@ const id = z.string().min(1).max(100);
 const optionalId = z.string().max(100).optional().default('');
 export function auditEntry(db: D1Database, tenant: string, action: string) { return db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now()); }
 export async function readWorkspace(db: D1Database, tenant: string) {
-    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts'];
+    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts', 'customer_groups'];
     const values = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} WHERE tenant=?`).bind(tenant).all()));
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
@@ -23,7 +25,7 @@ async function resource(db: D1Database, tenant: string, value: string, kind: str
 export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     const log = (s: string) => auditEntry(db, tenant, s), action = z.string().parse(raw.action);
     if (action === 'resource' || action === 'program') {
-        const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'academy']).parse(raw.kind);
+        const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'customerGroup', 'academy']).parse(raw.kind);
         const name = nameSchema.parse(raw.name);
         const resourceId=optionalId.parse(raw.id);
         const previous=resourceId?await resource(db,tenant,resourceId,kind):null;
@@ -64,7 +66,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
           details.preferredHorses=z.array(id).max(3).optional().default([]).parse(raw.preferredHorses);
           if(new Set(details.preferredHorses).size!==details.preferredHorses.length)throw Error('Choose each favorite horse once.');
           for(const horse of details.preferredHorses)await resource(db,tenant,horse,'horse');
-          details.preferredTrainer=optionalId.parse(raw.preferredTrainer);if(details.preferredTrainer)await resource(db,tenant,details.preferredTrainer,'trainer');
+          details.preferredTrainers=raw.preferredTrainers!==undefined?z.array(id).max(3).parse(raw.preferredTrainers):raw.preferredTrainer!==undefined?(raw.preferredTrainer?[id.parse(raw.preferredTrainer)]:[]):preferredTrainers(previous?.details??{});if(new Set(details.preferredTrainers).size!==details.preferredTrainers.length)throw Error('Choose each preferred trainer once.');for(const trainer of details.preferredTrainers)await resource(db,tenant,trainer,'trainer');details.preferredTrainer=details.preferredTrainers[0]??'';
         }
         const recordId=resourceId||crypto.randomUUID();
         const write=resourceId?db.prepare('UPDATE resources SET name=?,details=? WHERE tenant=? AND id=?').bind(name,JSON.stringify(details),tenant,recordId):db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(recordId,tenant,kind,name,JSON.stringify(details));
@@ -72,16 +74,21 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         return;
     }
     if (action === 'customer') {
-        const c = z.object({ id: optionalId, name: nameSchema, email: z.union([z.literal(''), z.string().email().max(200)]), phone: z.string().max(40), stage: z.enum(['inquiry', 'trial', 'active', 'inactive']), billing: z.enum(['none', 'current', 'failed', 'overdue']), balance: z.coerce.number().int().min(0).max(100000000), notes: str, emailConsent: z.boolean(), smsConsent: z.boolean() }).parse(raw);
+        const c = z.object({ id: optionalId, name: nameSchema, email: z.union([z.literal(''), z.string().email().max(200)]), phone: z.string().max(40), stage: z.enum(['inquiry', 'trial', 'active', 'inactive']), billing: z.enum(['none', 'current', 'failed', 'overdue']), balance: z.coerce.number().int().min(0).max(100000000), notes: str, emailConsent: z.boolean(), smsConsent: z.boolean(),adultConfirmed:z.boolean().optional(),groupIds:z.array(id).max(100).optional() }).parse(raw);
+        if(c.groupIds)for(const group of new Set(c.groupIds))await resource(db,tenant,group,'customerGroup');
         if (c.id) {
-            const exists = await db.prepare('SELECT id FROM customers WHERE tenant=? AND id=?').bind(tenant, c.id).first();
+            const exists = await db.prepare('SELECT id,adult_confirmed,email_consent,sms_consent FROM customers WHERE tenant=? AND id=?').bind(tenant, c.id).first();
             if (!exists)
                 throw Error('Customer not found.');
-            await db.batch([db.prepare('UPDATE customers SET name=?,email=?,phone=?,stage=?,billing=?,balance=?,notes=?,email_consent=?,sms_consent=? WHERE tenant=? AND id=?').bind(c.name, c.email, c.phone, c.stage, c.billing, c.balance, c.notes, Number(c.emailConsent), Number(c.smsConsent), tenant, c.id), log('Updated customer account: ' + c.name)]);
+            await db.batch([db.prepare('UPDATE customers SET name=?,email=?,phone=?,stage=?,billing=?,balance=?,notes=?,adult_confirmed=? WHERE tenant=? AND id=?').bind(c.name, c.email, c.phone, c.stage, c.billing, c.balance, c.notes,c.adultConfirmed===undefined?(exists as Row).adult_confirmed:Number(c.adultConfirmed), tenant, c.id), ...(c.groupIds?[db.prepare('DELETE FROM customer_groups WHERE tenant=? AND customer=?').bind(tenant,c.id),...Array.from(new Set(c.groupIds)).map(group=>db.prepare('INSERT INTO customer_groups VALUES(?,?,?)').bind(tenant,c.id,group))]:[]),log('Updated customer account: ' + c.name)]);
         }
-        else
-            await db.batch([db.prepare('INSERT INTO customers VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(), tenant, c.name, c.email, c.phone, c.stage, c.billing, c.balance, c.notes, Number(c.emailConsent), Number(c.smsConsent)), log('Added customer account: ' + c.name)]);
+        else {const customerId=crypto.randomUUID();await db.batch([db.prepare('INSERT INTO customers(id,tenant,name,email,phone,stage,billing,balance,notes,email_consent,sms_consent,adult_confirmed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)').bind(customerId,tenant,c.name,c.email,c.phone,c.stage,c.billing,c.balance,c.notes,Number(c.emailConsent),Number(c.smsConsent),Number(c.adultConfirmed??false)),...Array.from(new Set(c.groupIds??[])).map(group=>db.prepare('INSERT INTO customer_groups VALUES(?,?,?)').bind(tenant,customerId,group)),log('Added customer account: '+c.name)]);}
         return;
+    }
+    if(action==='contactPreferences'){
+ const c=z.object({customer:id,unsubscribeEmail:z.boolean(),unsubscribeSms:z.boolean()}).parse(raw);if(!c.unsubscribeEmail&&!c.unsubscribeSms)throw Error('Choose at least one subscription to remove.');
+ if(!await db.prepare('SELECT id FROM customers WHERE tenant=? AND id=?').bind(tenant,c.customer).first())throw Error('Customer not found.');
+ await db.batch([db.prepare('UPDATE customers SET email_consent=CASE WHEN ? THEN 0 ELSE email_consent END,sms_consent=CASE WHEN ? THEN 0 ELSE sms_consent END WHERE tenant=? AND id=?').bind(Number(c.unsubscribeEmail),Number(c.unsubscribeSms),tenant,c.customer),log('Manual unsubscribe: '+c.customer+' · email '+c.unsubscribeEmail+' · SMS '+c.unsubscribeSms)]);return;
     }
     if (action === 'membership') {
         const m = z.object({ id: optionalId, customer: id, plan: nameSchema, status: z.enum(['active', 'paused', 'canceled']) }).parse(raw);
@@ -97,9 +104,14 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         return;
     }
     if (action === 'draft') {
-        const d = z.object({ kind: z.enum(['message', 'automation']), name: nameSchema, segment: z.enum(['All customers', 'Needs attention', 'Active members', 'Trials & inquiries', 'Inactive']), channel: z.enum(['email', 'sms']), message: z.string().trim().min(1).max(2000), delay: z.coerce.number().int().min(0).max(720) }).parse(raw);
-        await db.batch([db.prepare('INSERT INTO drafts VALUES(?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(), tenant, d.kind, d.name, d.segment, d.channel, d.message, d.delay, Date.now()), log('Saved ' + d.kind + ' draft: ' + d.name)]);
-        return;
+ const filterSchema=z.object({customerId:optionalId,segment:z.enum(['All customers','Needs attention','Active members','Trials & inquiries','Inactive']).default('All customers'),query:z.string().max(200).default(''),level:z.string().max(100).default(''),riderGroup:optionalId,customerGroup:optionalId,optin:z.enum(['','email','sms','both','neither']).default('')});
+ const d=z.object({kind:z.enum(['message','automation']),name:nameSchema,segment:z.enum(['All customers','Needs attention','Active members','Trials & inquiries','Inactive']),channel:z.enum(['email','sms']),message:z.string().trim().min(1).max(2000),delay:z.coerce.number().int().min(0).max(720),filters:filterSchema.optional(),excludedIds:z.array(id).max(5000).default([])}).parse(raw);
+ const filters=d.filters??filterSchema.parse({segment:d.segment});for(const [value,kind] of [[filters.riderGroup,'group'],[filters.customerGroup,'customerGroup']])if(value)await resource(db,tenant,value,kind);
+ const s=await readWorkspace(db,tenant);const preview=audiencePreview({...s,customerGroups:s.customer_groups} as any,filters,d.channel,d.excludedIds);
+ if(preview.blocked.length)throw Error('Remove '+preview.blocked.length+' flagged contact(s) without confirmed adult status, channel consent or contact details before saving.');
+ if(!preview.eligible.length)throw Error('Choose at least one eligible adult contact.');
+ const audience=JSON.stringify({filters,excludedIds:d.excludedIds,eligibleCount:preview.eligible.length,reviewedAt:Date.now()});
+ await db.batch([db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,d.kind,d.name,filters.segment,d.channel,d.message,d.delay,Date.now(),audience),log('Saved consent-checked '+d.kind+' draft: '+d.name)]);return;
     }
     if (action === 'session') {
         const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: id, horses: z.array(id).max(100), requestKey: id }).parse(raw);
@@ -112,7 +124,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
         const pairs = [['trainer', b.trainer], ['arena', b.arena], ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
-        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinBookingAvailability(b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(kind==='trainer'&&program.details.level&&r.details.suitableLevels?.length){const level=await resource(db,tenant,program.details.level,'level');if(!r.details.suitableLevels.includes(level.name))throw Error('This instructor does not teach the selected program level.');}}
+        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinBookingAvailability(b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(kind==='trainer'&&program.details.level&&r.details.suitableLevels?.length){const level=await resource(db,tenant,program.details.level,'level');if(!r.details.suitableLevels.includes(level.name))throw Error('This trainer does not teach the selected program level.');}}
         if ((details.mounted ?? true) && new Set(b.horses).size < capacity)throw Error('Assign one horse for each mounted spot, or lower the program capacity.');
         const sessionId = crypto.randomUUID();
         await db.batch([db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
@@ -170,7 +182,7 @@ export async function validateEnrollment(db:D1Database,tenant:string,session:Row
                 throw Error('This rider does not meet the program’s selected level.');
         }
         const trainerReservation=await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,session.id).first<Row>();
-        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(trainer.details.suitableLevels?.length&&!trainer.details.suitableLevels.includes(rider.details.level))throw Error('This instructor does not teach this rider’s level.');}
+        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(trainer.details.suitableLevels?.length&&!trainer.details.suitableLevels.includes(rider.details.level))throw Error('This trainer does not teach this rider’s level.');}
         const horses = (await db.prepare("SELECT r.* FROM resources r JOIN reservations v ON r.id=v.resource AND r.tenant=v.tenant WHERE v.tenant=? AND v.session=? AND v.kind='horse'").bind(tenant, session.id).all<Row>()).results;
         if (rider.details.level === 'Beginner' && horses.some(h => JSON.parse(h.details).level === 'Advanced'))
             throw Error('A reserved horse is not suitable for a beginner rider.');

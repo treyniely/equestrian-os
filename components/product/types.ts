@@ -15,7 +15,7 @@ export type Resource = {
         group?: string;
         customer?: string;
         discipline?: string;
-        availability?:import('../../domain/availability').Availability;suitableLevels?:string[];description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;
+        availability?:import('../../domain/availability').Availability;suitableLevels?:string[];description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;preferredTrainers?:string[];
     };
 };
 export type Session = {
@@ -42,8 +42,10 @@ export type Draft = {
     message: string;
     delay: number;
     created: number;
+    audience?:string;
 };
 export type State = {
+    customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;
     resources: Resource[];
     bookings: any[];

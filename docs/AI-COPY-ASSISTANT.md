@@ -1,0 +1,9 @@
+# Proposed AI copy assistant — not live
+
+One reusable assistant for staff-authored trainer bios, horse descriptions, offering descriptions and message drafts. Staff start with their own rough text, choose Polish / Shorten / Warmer, then review the candidate beside the original and explicitly apply or discard it. Never replace a field automatically or publish/send a result. Keep original text available until saved; let the author keep editing.
+
+Voice: natural, friendly, confident, clear and specific to the academy. Avoid corporate filler, exaggerated claims and generic AI phrasing. Preserve names, facts and meaning. Never invent credentials, certifications, years of experience, safety guarantees, achievements or policies. Missing facts stay missing; ask for detail rather than fabricate it. Message polishing must not infer channel consent or change recipients.
+
+Implementation boundary: a shared text-field UI plus a server-owned provider adapter; server validates text length, context, tenant, feature management permission and origin. Use a configured server-side secret, fixed provider endpoint/model configuration, bounded request timeout, per-account/academy rate limits and usage budget. Do not expose keys to the browser or store submitted bios/prompts in logs. Treat user text as data rather than system instructions. Test authorization, malformed/oversized input, rate limits, provider failures and preserve-original behavior.
+
+Current status: no AI runtime/provider environment variables are configured for this Site. No AI API or live writing button has been enabled. Activation requires a provider connection and an authorized usage budget; provider outputs and hosted behavior must be verified before claiming the feature works. This is a design specification, not a working integration.

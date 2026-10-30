@@ -57,6 +57,13 @@
       "when": 1793363039427,
       "tag": "0007_customer_audiences",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793364061501,
+      "tag": "0008_barn_team",
+      "breakpoints": true
     }
   ]
 }

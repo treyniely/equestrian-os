@@ -1,3 +1,4 @@
+import {barnAction} from '../../../server/barn';
 import {cookies} from 'next/headers';
 import {accessFor,teamAction} from '../../../server/team';
 import {can,requiredFeature,visibleState} from '../../../domain/permissions';
@@ -9,7 +10,7 @@ const json = (v: unknown, status = 200) => Response.json(v, { status });
 async function context() { const user = await getChatGPTUser(); if (!user)
     throw new Error('AUTH'); if (!env.DB)
     throw new Error('Database unavailable.'); return {db:env.DB,user,...await accessFor(env.DB,user,(await cookies()).get('eo-academy')?.value)}; }
-async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];return {...visibleState({...state,team},grants),permissions:grants,currentRole:role};}
+async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];const academy=state.resources.find((r:any)=>r.kind==='academy');const barn_tasks=state.barn_tasks.map((t:any)=>({...t,sessionCanceled:!!t.session&&state.sessions.some((s:any)=>s.id===t.session&&s.status==='canceled')}));return {...visibleState({...state,team,barn_tasks},grants),academyInfo:{name:academy?.name??'My riding academy',timezone:academy?.details.availability?.timezone??'UTC'},permissions:grants,currentRole:role};}
 export async function GET() { try {
     const {db,tenant,grants,role,user}=await context();
     return json(await responseState(db,tenant,grants,role));
@@ -33,7 +34,8 @@ export async function POST(req: Request) {
  if(['teamInvite','teamUpdate'].includes(body.action)){const result=await teamAction(db,tenant,body,user.email,grants);return json({...await responseState(db,tenant,grants,role),...(result.inviteToken?{inviteUrl:new URL(req.url).origin+'/join#'+result.inviteToken}:{})});}
 
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
-        if (['resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
+        if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
+        else if (['resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
             await applyAction(db, tenant, body);
         }
         else if (body.action === 'cancel') {

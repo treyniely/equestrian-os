@@ -12,7 +12,7 @@ const id = z.string().min(1).max(100);
 const optionalId = z.string().max(100).optional().default('');
 export function auditEntry(db: D1Database, tenant: string, action: string) { return db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now()); }
 export async function readWorkspace(db: D1Database, tenant: string) {
-    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts', 'customer_groups'];
+    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts', 'customer_groups', 'intern_attendance', 'barn_tasks'];
     const values = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} WHERE tenant=?`).bind(tenant).all()));
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
@@ -25,7 +25,7 @@ async function resource(db: D1Database, tenant: string, value: string, kind: str
 export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     const log = (s: string) => auditEntry(db, tenant, s), action = z.string().parse(raw.action);
     if (action === 'resource' || action === 'program') {
-        const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'customerGroup', 'academy']).parse(raw.kind);
+        const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'customerGroup', 'intern', 'academy']).parse(raw.kind);
         const name = nameSchema.parse(raw.name);
         const resourceId=optionalId.parse(raw.id);
         const previous=resourceId?await resource(db,tenant,resourceId,kind):null;
@@ -52,11 +52,11 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         if(kind==='academy'&&raw.brandColor!==undefined)details.brandColor=z.string().refine(v=>normalizeBrandColor(v)!==null,'Enter a valid hex color.').transform(v=>normalizeBrandColor(v)!).parse(raw.brandColor);
         if(kind==='academy')details.cancellationHours=z.coerce.number().int().min(0).max(720).optional().default(previous?.details.cancellationHours??24).parse(raw.cancellationHours);
-        if(['trainer','horse','academy'].includes(kind)){
+        if(['trainer','horse','intern','academy'].includes(kind)){
           details.description=z.string().max(3000).optional().default('').parse(raw.description);
           details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid photo').optional().default('').parse(raw.photoId);
         }
-        if(['trainer','horse','academy'].includes(kind)){
+        if(['trainer','horse','intern','academy'].includes(kind)){
           delete details.dailyLimitMinutes;delete details.restMinutes;
           const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
           if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');}details.availability=hours;}

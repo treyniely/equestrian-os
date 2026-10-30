@@ -1,12 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { LayoutDashboard, CalendarDays, Users, UserRound, BookOpen, BookUser, MapPin, Settings, ShieldCheck, Menu, LogOut, ArrowUpRight, Check, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, UserRound, BookOpen, BookUser, MapPin, Settings, ShieldCheck, Menu, LogOut, ArrowUpRight, Check, ChevronRight, ClipboardList } from 'lucide-react';
 import type { State, Save } from './types';
 import Dialog, { FeedbackContext } from './dialog';
 import Programs from './programs';
 import Customers from './customers';
 import Sessions from './sessions';
-import Team from './team';
+import Team from './team';import BarnTeam from './barn-team';
 import AcademyBranding from './academy-branding';
 import AcademyHours from './academy-hours';
 import AcademySwitcher from './academy-switcher';
@@ -15,7 +15,7 @@ import Profiles,{PhotoUpload,upload} from './profiles';
 import HorseIcon from './horse-icon';
 import SetupChecklist, {type SetupStep} from './setup-checklist';
 const empty: State = { resources: [], bookings: [], customers: [], memberships: [], sessions: [], enrollments: [], reservations: [], drafts: [], audit: [] };
-const nav = [['Overview', LayoutDashboard], ['Calendar', CalendarDays], ['Customers', BookUser], ['Programs & Services', BookOpen], ['Riders', Users], ['Horses', HorseIcon], ['Trainers', UserRound], ['Riding spaces', MapPin], ['Academy setup', Settings], ['Team & Access',ShieldCheck],['Roadmap', ShieldCheck]] as const;
+const nav = [['Overview', LayoutDashboard], ['Calendar', CalendarDays], ['Customers', BookUser], ['Programs & Services', BookOpen], ['Riders', Users], ['Horses', HorseIcon], ['Trainers', UserRound], ['Riding spaces', MapPin], ['Academy setup', Settings], ['Barn team',ClipboardList],['Team & Access',ShieldCheck],['Roadmap', ShieldCheck]] as const;
 const kinds: Record<string, string> = { Riders: 'rider', Horses: 'horse', Trainers: 'trainer', 'Riding spaces': 'arena' };
 export default function Workspace() {
     const [state, setState] = useState<State>(empty), [view, setView] = useState('Overview'), [loading, setLoading] = useState(true), [auth, setAuth] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [mobile, setMobile] = useState(false), [resourceKind, setResourceKind] = useState(''), [query, setQuery] = useState(''), [intent,setIntent]=useState(''),[contactParentId,setContactParentId]=useState(''),[uploadingLogo,setUploadingLogo]=useState(false);
@@ -25,7 +25,7 @@ export default function Workspace() {
     } const d = await r.json() as State & {
         error: string;
     }; if (!r.ok)
-        throw Error(d.error); setState(d); }).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
+        throw Error(d.error); setState(d);if(d.currentRole==='intern')setView('Barn team'); }).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
     const save: Save = async (data) => { setBusy(true); setError(''); try {
         const r = await fetch('/api/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         const d = await r.json() as State & {
@@ -45,7 +45,7 @@ export default function Workspace() {
         setBusy(false);
     } };
     const grants=state.permissions??roleGrants('owner');
-    const viewFeature:Record<string,Feature>={'Customers':'customers','Calendar':'schedule','Programs & Services':'programs','Riders':'riders','Horses':'horses','Trainers':'trainers','Riding spaces':'setup','Academy setup':'setup','Team & Access':'team'};
+    const viewFeature:Record<string,Feature>={'Customers':'customers','Calendar':'schedule','Programs & Services':'programs','Riders':'riders','Horses':'horses','Trainers':'trainers','Riding spaces':'setup','Academy setup':'setup','Barn team':'interns','Team & Access':'team'};
     const readOnly=!!viewFeature[view]&&!can(grants,viewFeature[view],true);
     const go = (v: string) => {if(viewFeature[v]&&!can(grants,viewFeature[v]))return; setView(v); setQuery(''); setMobile(false); setError('');setIntent('');setContactParentId(''); }, resources = (kind: string) => state.resources.filter(r => r.kind === kind);
     const stepDefinitions = [['Name your academy', 'academy', 'Academy setup'], ['Add your trainers', 'trainer', 'Trainers'], ['Add riding spaces', 'arena', 'Riding spaces'], ['Create your first offering', 'lesson', 'Programs & Services'], ['Bring in your customers', 'customer', 'Customers'],['Schedule your first session','session','Calendar']] as const;
@@ -59,6 +59,7 @@ export default function Workspace() {
  {view==='Team & Access'&&<Team state={state} save={save} busy={busy}/>}
  {view === 'Programs & Services' && <Programs state={state} save={save} busy={busy} startCreate={intent==='lesson'}/>}{view === 'Customers' && <Customers state={state} save={save} busy={busy} startCreate={intent==='customer'} initialContactId={contactParentId}/>}{view === 'Calendar' && <Sessions state={state} save={save} busy={busy} startCreate={intent==='session'}/>}
  {['Riders','Horses','Trainers'].includes(view)&&<Profiles key={view} state={state} save={save} busy={busy} kind={kinds[view]} create={resourceKind===kinds[view]} onClose={()=>setResourceKind('')} onContactParent={id=>{go('Customers');setContactParentId(id)}}/>}
+ {view==='Barn team'&&<BarnTeam state={state} save={save} busy={busy}/>}
  {view==='Riding spaces' && <section className="panel"><div className="panel-heading"><div><h2>{view}</h2><p>Saved to your academy workspace.</p></div><label className="search"><input aria-label={'Search ' + view} placeholder="Search…" value={query} onChange={e => setQuery(e.target.value)}/></label></div><div className="resource-grid">{resources(kinds[view]).filter(r => r.name.toLowerCase().includes(query.toLowerCase())).map(r => <article className="resource-card" key={r.id}><div className="resource-avatar">{r.name.split(' ').slice(0, 2).map(n => n[0]).join('')}</div><h3>{r.name}</h3><span className="pill">{r.details.level ?? 'Available'}</span><p>{r.details.customer ? state.customers.find(c => c.id === r.details.customer)?.name : 'Academy resource'}</p>{r.details.group && <small>{state.resources.find(g => g.id === r.details.group)?.name}</small>}</article>)}</div>{!resources(kinds[view]).length && <div className="empty"><h3>Start with your first {kinds[view]}.</h3><button className="secondary" onClick={() => setResourceKind(kinds[view])}>+ Add {kinds[view]}</button></div>}</section>}
  {view === 'Academy setup' && <><AcademyHours academy={resources('academy')[0]} save={save} busy={busy} readOnly={readOnly}/><AcademyBranding academy={resources('academy')[0]} save={save} busy={busy} readOnly={readOnly}/><section className="panel"><div className="panel-heading"><div><h2>Your academy’s language</h2><p>Use the names your team and families already know.</p></div></div><div className="setup-cards">{[['academy', 'Academy name', 'Name your business'], ['level', 'Rider levels', 'Rainbow, Red, Yellow, Advanced…'], ['discipline', 'Disciplines', 'Western, English, or your own focus'], ['group', 'Rider groups', 'Rainbow/Red Group, Advanced Academy…']].map(([kind, title, desc]) => <article key={kind}><div><h3>{title}</h3><p>{desc}</p><div className="chip-list">{resources(kind).map(r => <span className="pill" key={r.id}>{r.name}</span>)}</div></div><button className="secondary" onClick={() => setResourceKind(kind)}>+ Add {kind === 'academy' ? 'name' : kind}</button></article>)}</div></section>{can(grants,'setup',true)&&<SetupChecklist steps={steps} onAction={openSetupStep}/>}<div className="account-strip">Calendar inputs use UTC. Trainer and horse profiles support weekly availability in their own selected time zones. Recurring sessions and detailed horse suitability are upcoming. Custom levels match by name; they are not automatically ranked.</div></>}
  {view === 'Roadmap' && <div className="milestones">{[['Available in 0.2', 'Programs & Services templates, session capacity, private parties, customer records and filters, manual memberships, saved communication drafts, custom rider labels and guided setup.'], ['Next: complete booking lifecycle', 'Local timezones and recurring schedules, guardian login, staff permissions, Stripe test payments, membership entitlements and transactional messages.'], ['Pilot readiness', 'Live billing, packages, waivers, delivery/retry workflows, monitoring, security and accessibility review.'], ['Learning beyond the barn', 'Trainer content, rider assignments, knowledge checks and practical trainer sign-off.'], ['AI and growth', 'Permissioned AI assistance, connected lifecycle automation and reporting.'], ['Native mobile', 'Dedicated apps after responsive workflows are validated. Academy website builder excluded.']].map(([title, desc], i) => <article key={title}><span className="milestone-number">0{i + 1}</span><div><h2>{title}</h2><p>{desc}</p></div></article>)}</div>}

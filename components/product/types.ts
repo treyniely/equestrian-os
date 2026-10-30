@@ -45,6 +45,8 @@ export type Draft = {
     audience?:string;
 };
 export type State = {
+    academyInfo?:{name:string;timezone:string};
+    intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];
     customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;
     resources: Resource[];

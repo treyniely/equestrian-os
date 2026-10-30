@@ -20,3 +20,5 @@ If browser preview is unavailable, capture the concrete failure once and disclos
 ## Current source audit
 
 Admin and portal selects now share one chevron/padding rule; portal-only fixes were removed. Dialog input/select/textarea spacing, checkbox sizes, close-button clearance, small-screen input fonts and wrapping action rows were reviewed in source. The availability editor now has shared page/dialog styles rather than depending on dialog ancestors. These source changes are not a substitute for the viewport matrix above. Browser preview continues to refuse connections in this environment; visual audit remains pending. Marketing's separate live deployment was not changed or visually audited in this release.
+
+Barn team adds required checks for roster Here/Not here today, task generation on empty/populated calendars, unassigned work, in-progress handoffs, start/complete/reopen/cancel, canceled sessions, task reassignment conflicts and the restricted tablet board role. Review the Barn view at 768px and 1024px with long intern/task names and refresh errors. These cases are included in the pending visual matrix until browser preview is available.

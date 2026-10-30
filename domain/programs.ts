@@ -8,6 +8,7 @@ export const templates = [
     { id: 'event', name: 'Event', description: 'A gathering with a guest list.', duration: 60, capacity: 20, mounted: false }
 ] as const;
 export type Customer = {
+    relationship?:string;
     emergency_contacts?:import('./family-contacts').FamilyContact[];contacts_revision?:number;
     id: string;
     adult_confirmed?:number;

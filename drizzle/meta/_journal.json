@@ -71,6 +71,13 @@
       "when": 1793371804865,
       "tag": "0009_normal_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793385223930,
+      "tag": "0010_fluffy_cloak",
+      "breakpoints": true
     }
   ]
 }

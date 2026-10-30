@@ -1,0 +1,1 @@
+export const relationshipOptions=['Mother','Father','Grandmother','Grandfather','Legal guardian','Aunt','Uncle','Stepparent','Foster parent','Sibling','Other relative','Family friend','Self (adult rider)'] as const;

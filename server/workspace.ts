@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import {saveFamilyContacts} from './family-contacts.ts';
+import {riderIntakeSchema} from '../domain/rider-intake.ts';
 import {preferredTrainers} from '../domain/preferences.ts';
 import {audiencePreview} from '../domain/audiences.ts';
 import {normalizeBrandColor} from '../domain/branding.ts';
@@ -16,7 +18,9 @@ export async function readWorkspace(db: D1Database, tenant: string) {
     const values = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} WHERE tenant=?`).bind(tenant).all()));
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
+    result.customers=result.customers.map((c:Row)=>({...c,emergency_contacts:JSON.parse(c.emergency_contacts)}));
     result.resources = result.resources.map((r: Row) => ({ ...r, details: JSON.parse(r.details) }));
+    result.trainer_reviews=(await db.prepare("SELECT id,trainer,rating,message,status,revision,updated FROM trainer_reviews WHERE tenant=? ORDER BY (status='pending') DESC,updated DESC LIMIT 200").bind(tenant).all()).results;
     result.audit = (await db.prepare('SELECT action,created FROM audit WHERE tenant=? ORDER BY created DESC LIMIT 30').bind(tenant).all()).results;
     return result;
 }
@@ -63,6 +67,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
           if(kind==='trainer'){details.suitableLevels=z.array(nameSchema).max(50).optional().default([]).parse(raw.suitableLevels);}
         }
         if(kind==='rider'){
+          for(const [key,value] of Object.entries(riderIntakeSchema.parse(raw)))if(value!==undefined)details[key]=value;
           details.preferredHorses=z.array(id).max(3).optional().default([]).parse(raw.preferredHorses);
           if(new Set(details.preferredHorses).size!==details.preferredHorses.length)throw Error('Choose each favorite horse once.');
           for(const horse of details.preferredHorses)await resource(db,tenant,horse,'horse');
@@ -73,6 +78,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         await db.batch([write,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
         return;
     }
+    if(action==='customerContacts'){await saveFamilyContacts(db,tenant,id.parse(raw.customer),raw);return;}
     if (action === 'customer') {
         const c = z.object({ id: optionalId, name: nameSchema, email: z.union([z.literal(''), z.string().email().max(200)]), phone: z.string().max(40), stage: z.enum(['inquiry', 'trial', 'active', 'inactive']), billing: z.enum(['none', 'current', 'failed', 'overdue']), balance: z.coerce.number().int().min(0).max(100000000), notes: str, emailConsent: z.boolean(), smsConsent: z.boolean(),adultConfirmed:z.boolean().optional(),groupIds:z.array(id).max(100).optional() }).parse(raw);
         if(c.groupIds)for(const group of new Set(c.groupIds))await resource(db,tenant,group,'customerGroup');

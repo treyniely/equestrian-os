@@ -4,7 +4,7 @@ export type Resource = {
     kind: string;
     name: string;
     details: {
-        brandColor?:string;cancellationHours?:number;
+        ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;reviewsEnabled?:boolean;brandColor?:string;cancellationHours?:number;
         level?: string;
         duration?: number;
         capacity?: number;
@@ -45,7 +45,8 @@ export type Draft = {
     audience?:string;
 };
 export type State = {
-    academyInfo?:{name:string;timezone:string};
+    trainer_reviews?:import('../../domain/trainer-reviews').TrainerReview[];
+    academyInfo?:{reviewsEnabled?:boolean;name:string;timezone:string};
     intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];
     customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;

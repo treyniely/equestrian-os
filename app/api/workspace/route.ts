@@ -1,6 +1,7 @@
 import {barnAction} from '../../../server/barn';
 import {cookies} from 'next/headers';
 import {accessFor,teamAction} from '../../../server/team';
+import {moderateReview,reviewSettings} from '../../../server/trainer-reviews';
 import {can,requiredFeature,visibleState} from '../../../domain/permissions';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '../../chatgpt-auth';
@@ -10,7 +11,7 @@ const json = (v: unknown, status = 200) => Response.json(v, { status });
 async function context() { const user = await getChatGPTUser(); if (!user)
     throw new Error('AUTH'); if (!env.DB)
     throw new Error('Database unavailable.'); return {db:env.DB,user,...await accessFor(env.DB,user,(await cookies()).get('eo-academy')?.value)}; }
-async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];const academy=state.resources.find((r:any)=>r.kind==='academy');const barn_tasks=state.barn_tasks.map((t:any)=>({...t,sessionCanceled:!!t.session&&state.sessions.some((s:any)=>s.id===t.session&&s.status==='canceled')}));return {...visibleState({...state,team,barn_tasks},grants),academyInfo:{name:academy?.name??'My riding academy',timezone:academy?.details.availability?.timezone??'UTC'},permissions:grants,currentRole:role};}
+async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];const academy=state.resources.find((r:any)=>r.kind==='academy');const barn_tasks=state.barn_tasks.map((t:any)=>({...t,sessionCanceled:!!t.session&&state.sessions.some((s:any)=>s.id===t.session&&s.status==='canceled')}));return {...visibleState({...state,team,barn_tasks},grants),academyInfo:{reviewsEnabled:academy?.details.reviewsEnabled===true,name:academy?.name??'My riding academy',timezone:academy?.details.availability?.timezone??'UTC'},permissions:grants,currentRole:role};}
 export async function GET() { try {
     const {db,tenant,grants,role,user}=await context();
     return json(await responseState(db,tenant,grants,role));
@@ -33,9 +34,11 @@ export async function POST(req: Request) {
  if(body.action==='customer'&&!can(grants,'billing',true)){const old=body.id?await db.prepare('SELECT billing,balance FROM customers WHERE tenant=? AND id=?').bind(tenant,body.id).first<any>():null;body.billing=old?.billing??'none';body.balance=old?.balance??0;}
  if(['teamInvite','teamUpdate'].includes(body.action)){const result=await teamAction(db,tenant,body,user.email,grants);return json({...await responseState(db,tenant,grants,role),...(result.inviteToken?{inviteUrl:new URL(req.url).origin+'/join#'+result.inviteToken}:{})});}
 
+        if(body.action==='reviewSettings'){await reviewSettings(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
+        if(body.action==='reviewModerate'){await moderateReview(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
         if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
-        else if (['resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
+        else if (['customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
             await applyAction(db, tenant, body);
         }
         else if (body.action === 'cancel') {

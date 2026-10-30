@@ -10,3 +10,6 @@ export function withinAvailability(start:number,end:number,availability?:Availab
  const a=parts(start),b=parts(end);const day=availability?.days[a.day]??{enabled:true,start:'08:00',end:'18:00'};const mins=(v:string)=>Number(v.slice(0,2))*60+Number(v.slice(3));
  return !availability?.datesOff?.includes(a.date)&&!availability?.datesOff?.includes(b.date)&&day.enabled&&a.date===b.date&&a.minutes>=mins(day.start)&&b.minutes<=mins(day.end);
 }
+
+/** Business hours/closures always win; unconfigured profiles follow business hours. */
+export function withinBookingAvailability(start:number,end:number,business?:Availability,profile?:Availability){return business?withinAvailability(start,end,business)&&(!profile||withinAvailability(start,end,profile)):withinAvailability(start,end,profile)}

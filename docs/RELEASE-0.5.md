@@ -1,0 +1,15 @@
+# 0.5 — Minimal academy branding
+
+Academy Setup includes a color picker, hex input, live portal preview, explicit save and default reset. Existing name/logo are reused in the preview and customer header. A single brand color controls primary buttons, hover, navigation, focus, checkboxes and lightly tinted panels. Confirmed/canceled/alert colors remain semantic. Fonts, layout and neutral page backgrounds remain consistent across academies.
+
+Pure branding utilities normalize 3/6-digit hex, preserve chosen button colors, choose black/white button text by contrast and derive dark accents with at least 4.5:1 contrast against portal white/off-white/tint surfaces. This is targeted color contrast validation, not a blanket accessibility certification. No arbitrary CSS is accepted. Server enforces valid hex input through setup management permission and exposes only the normalized color in the customer academy payload. Saves use the existing tenant-scoped resource service. Other academy/logo edits preserve saved branding. Invalid legacy colors fall back to the default theme.
+
+No dependencies or schema migrations. One field in existing academy details JSON, a small domain module and dedicated admin branding component; the portal consumes shared CSS variables. Existing customers and bookings unchanged. Rollback is code-only; retain stored color metadata. TypeScript, 44 tests and production build passed, including contrast checks, invalid CSS rejection, permission mapping, tenant isolation and preservation after other edits. Browser preview connection remains unavailable, so visual verification is incomplete. Owner-private staging only.
+
+## Scheduling and shared UI follow-up
+
+The dates-off editor now supports toggling multiple individual dates, adding inclusive date ranges across months, deduplicating overlaps, grouping consecutive selections and removing selections before one final profile/schedule save. Calendar buttons are keyboard reachable and announce selection state. Dates are stored in existing datesOff metadata, capped at 366; no date expansion migration.
+
+Academy Setup now has weekly business hours, a time zone and closure-date editor. Server session creation, registration, party reservations and family rescheduling validate the academy schedule plus personal resource schedules. Unconfigured resource schedules follow explicit academy hours; without an academy schedule legacy defaults are retained. New profile editors start from academy weekly hours without copying its closure dates into permanent personal exceptions. Existing sessions are never silently canceled.
+
+Shared select insets now cover admin, family and invitation dialogs. Source review also covered field padding, close-button clearance, checkboxes, action wrapping and mobile input text. AGENTS.md requires the release QA matrix in docs/RELEASE-QA.md; npm run check:release runs TypeScript, all tests and a production build. No extra dependencies. Full desktop/mobile visual QA remains unverified due to refused browser preview; the separate live marketing deployment was not visually audited or modified.

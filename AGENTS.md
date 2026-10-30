@@ -11,3 +11,5 @@ Booking operations must be atomic, retry-safe, and prevent concurrent resource c
 Every release: review architectural boundaries and dependency growth; run relevant domain, authorization, concurrency, and build checks; document schema migrations, configuration, rollback, and incomplete features. Never label demo data or unconnected payments as production functionality. Do not store secrets or real customer data in Git.
 
 Scope: lesson businesses and riding academies; responsive admin and family portals first; 14-day guided trial; rider education included; academy website builder excluded. Maintain requirements and architecture decisions in docs/.
+
+Release QA is mandatory: follow docs/RELEASE-QA.md and run npm run check:release. Audit spacing, dropdown insets, responsive forms, dialogs, empty/error/disabled states and keyboard focus across all affected shared controls on every release. Record viewport/screenshot evidence when browser access works. If browser access is unavailable, disclose exactly what is unverified; never call source inspection a passed visual audit or hand routine QA back to the user.

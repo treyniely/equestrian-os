@@ -4,7 +4,7 @@ export type Resource = {
     kind: string;
     name: string;
     details: {
-        cancellationHours?:number;
+        brandColor?:string;cancellationHours?:number;
         level?: string;
         duration?: number;
         capacity?: number;

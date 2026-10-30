@@ -1,0 +1,4 @@
+import {isCalendarDate} from './availability.ts';
+export function dateRange(a:string,b:string){if(!isCalendarDate(a)||!isCalendarDate(b))throw Error('Choose valid calendar dates.');const [start,end]=[a,b].sort();const count=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;if(count>366)throw Error('Choose a range of 366 days or fewer.');return Array.from({length:count},(_,i)=>new Date(Date.parse(start)+i*86400000).toISOString().slice(0,10))}
+export function addDatesOff(existing:string[],next:string[]){const dates=[...new Set([...existing,...next])].sort();if(dates.length>366)throw Error('You can select up to 366 dates off.');return dates}
+export function groupedDatesOff(dates:string[]){const result:{start:string;end:string}[]=[];for(const date of [...new Set(dates)].sort()){const last=result.at(-1);if(last&&Date.parse(date)-Date.parse(last.end)===86400000)last.end=date;else result.push({start:date,end:date})}return result}

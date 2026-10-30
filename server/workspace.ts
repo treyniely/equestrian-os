@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import {withinAvailability,isTimeZone,isCalendarDate} from '../domain/availability.ts';
+import {normalizeBrandColor} from '../domain/branding.ts';
+import {withinAvailability,withinBookingAvailability,isTimeZone,isCalendarDate} from '../domain/availability.ts';
 import {photoIdPattern} from '../domain/photos.ts';
 import { templates } from '../domain/programs.ts';
 export type Row = Record<string, any>;
@@ -47,12 +48,13 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
                     throw Error('Customer account not found.');
             }
         }
+        if(kind==='academy'&&raw.brandColor!==undefined)details.brandColor=z.string().refine(v=>normalizeBrandColor(v)!==null,'Enter a valid hex color.').transform(v=>normalizeBrandColor(v)!).parse(raw.brandColor);
         if(kind==='academy')details.cancellationHours=z.coerce.number().int().min(0).max(720).optional().default(previous?.details.cancellationHours??24).parse(raw.cancellationHours);
         if(['trainer','horse','academy'].includes(kind)){
           details.description=z.string().max(3000).optional().default('').parse(raw.description);
           details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid photo').optional().default('').parse(raw.photoId);
         }
-        if(['trainer','horse'].includes(kind)){
+        if(['trainer','horse','academy'].includes(kind)){
           delete details.dailyLimitMinutes;delete details.restMinutes;
           const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
           if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');}details.availability=hours;}
@@ -109,7 +111,8 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const duration = details.duration ?? 45, capacity = details.capacity ?? 1;
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
         const pairs = [['trainer', b.trainer], ['arena', b.arena], ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
-        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinAvailability(b.start,end.getTime(),r.details.availability))throw Error(r.name+' is not available at this time.');if(kind==='trainer'&&program.details.level&&r.details.suitableLevels?.length){const level=await resource(db,tenant,program.details.level,'level');if(!r.details.suitableLevels.includes(level.name))throw Error('This instructor does not teach the selected program level.');}}
+        const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
+        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinBookingAvailability(b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(kind==='trainer'&&program.details.level&&r.details.suitableLevels?.length){const level=await resource(db,tenant,program.details.level,'level');if(!r.details.suitableLevels.includes(level.name))throw Error('This instructor does not teach the selected program level.');}}
         if ((details.mounted ?? true) && new Set(b.horses).size < capacity)throw Error('Assign one horse for each mounted spot, or lower the program capacity.');
         const sessionId = crypto.randomUUID();
         await db.batch([db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
@@ -129,6 +132,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const session = await db.prepare("SELECT * FROM sessions WHERE tenant=? AND id=? AND status='scheduled'").bind(tenant, b.session).first<Row>();
         if (!session)
             throw Error('Session unavailable.');
+        await validateSessionAvailability(db,tenant,session);
         const program = await resource(db, tenant, session.program, 'lesson');
         if (program.details.template !== 'party')
             throw Error('Not a private party.');
@@ -155,7 +159,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
 }
 
 export async function validateEnrollment(db:D1Database,tenant:string,session:Row,riderId:string){
-        const assigned=(await db.prepare('SELECT resource,kind FROM reservations WHERE tenant=? AND session=?').bind(tenant,session.id).all<Row>()).results;for(const assignment of assigned){const r=await resource(db,tenant,assignment.resource,assignment.kind);if(!withinAvailability(session.start,session.end,r.details.availability))throw Error(r.name+' is no longer available for new registrations at this time.');}
+ await validateSessionAvailability(db,tenant,session);
         const rider = await resource(db, tenant, riderId, 'rider');
         const program = await resource(db, tenant, session.program, 'lesson');
         if (program.details.template === 'party')
@@ -172,4 +176,10 @@ export async function validateEnrollment(db:D1Database,tenant:string,session:Row
             throw Error('A reserved horse is not suitable for a beginner rider.');
 
 return {rider,program};
+}
+
+export async function validateSessionAvailability(db:D1Database,tenant:string,session:Row){
+ const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(session.start,session.end,business))throw Error('The academy is closed at this time.');
+        const assigned=(await db.prepare('SELECT resource,kind FROM reservations WHERE tenant=? AND session=?').bind(tenant,session.id).all<Row>()).results;for(const assignment of assigned){const r=await resource(db,tenant,assignment.resource,assignment.kind);if(!withinBookingAvailability(session.start,session.end,business,r.details.availability))throw Error(r.name+' is no longer available for new registrations at this time.');}
+
 }

@@ -1,8 +1,9 @@
+import {lessonWindowStarts} from './lesson-window.ts';
 import {isCalendarDate,isTimeZone,withinResourceAvailability,weekdays} from './availability.ts';
 import {taskTime,localDate} from './barn.ts';
 import {resourceWork} from './horse-planning.ts';
 import {allowsRiderLevel} from './suitability.ts';
-export type PlanBlock={trainer?:string;count?:number;gap?:number;id:string;program:string;days:number[];time:string;weeks:number[];arena:string;horses:string[];trainers:string[];interns:string[]};
+export type PlanBlock={endTime?:string;trainer?:string;count?:number;gap?:number;id:string;program:string;days:number[];time:string;weeks:number[];arena:string;horses:string[];trainers:string[];interns:string[]};
 export type MonthPlan={mode?:'trainer'|'academy';month:string;trainer:string;blocks:PlanBlock[];excludedDates:string[]};
 type Resource={id:string;kind:string;name:string;details:Record<string,any>};
 type PlannerState={resources:Resource[];reservations:{kind:string;resource:string;session:string}[];sessions:{id:string;status:string;start:number;end:number;program?:string}[];bookings:any[];intern_attendance?:{intern:string;date:string;status:string}[]};
@@ -18,8 +19,9 @@ export function previewMonthlyPlan(state:PlannerState,plan:MonthPlan){
  const pairs:[string,string][]=[['trainer',primary.id],...block.trainers.filter(id=>id!==primary.id).map(id=>['trainer',id] as [string,string]),...block.interns.map(id=>['intern',id] as [string,string]),['arena',block.arena],...block.horses.map(id=>['horse',id] as [string,string])];
  if(new Set(pairs.map(p=>p[1])).size!==pairs.length)throw Error('Choose each team member or resource once per block.');
  for(let day=1;day<=last.getUTCDate();day++){const date=plan.month+'-'+String(day).padStart(2,'0'),weekday=new Date(date+'T12:00:00Z').getUTCDay(),week=Math.floor((day-1)/7)+1;if(!block.days.includes(weekday)||!block.weeks.includes(week)||plan.excludedDates.includes(date))continue;
- for(let repeat=0;repeat<(block.count??1);repeat++){const minutes=Number(block.time.slice(0,2))*60+Number(block.time.slice(3))+repeat*((program.details.duration??45)+(block.gap??0)),time=String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
- const start=minutes>=1440?NaN:taskTime(date,time,zone),end=start+(program.details.duration??45)*60000,issues:string[]=[];
+ const windowStarts=block.endTime?lessonWindowStarts({date,from:block.time,until:block.endTime,zone,duration:program.details.duration??45,gap:block.gap??0,business,resources:pairs.flatMap(([kind,id])=>{const r=state.resources.find(r=>r.id===id&&r.kind===kind);return r?[{kind,availability:r.details.availability,work:work(kind,id)}]:[]})}):null;
+ for(let repeat=0;repeat<(windowStarts?.length??block.count??1);repeat++){const minutes=Number(block.time.slice(0,2))*60+Number(block.time.slice(3))+repeat*((program.details.duration??45)+(block.gap??0)),time=String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
+ const start=windowStarts?windowStarts[repeat]:minutes>=1440?NaN:taskTime(date,time,zone),end=start+(program.details.duration??45)*60000,issues:string[]=[];
  if(Number.isFinite(start)&&start<Date.now())issues.push('This start time has already passed.');
  if(!Number.isFinite(start))issues.push(minutes>=1440?'This block extends past midnight. Use fewer lessons or an earlier start.':'This local time does not exist because the clocks change.');
  if(program.details.template!=='private'&&(program.details.mounted??true)&&block.horses.length<(program.details.capacity??1))issues.push('Assign a horse for each mounted spot.');
@@ -31,7 +33,7 @@ export function previewMonthlyPlan(state:PlannerState,plan:MonthPlan){
  if(kind==='intern'&&state.intern_attendance?.some(a=>a.intern===id&&a.date===date&&a.status==='absent'))issues.push(resource.name+' is marked not here today.');
  }
  if(slots.length>=100)throw Error('This plan creates more than 100 sessions. Use fewer days or blocks.');
- slots.push({key:block.id+':'+date+(repeat?':'+repeat:''),block:block.id,date,program:program.id,name:program.name,start,end,capacity:program.details.capacity??1,pairs,issues,overlaps:[]});
+ slots.push({key:block.id+':'+date+(windowStarts?':'+start:repeat?':'+repeat:''),block:block.id,date,program:program.id,name:program.name,start,end,capacity:program.details.capacity??1,pairs,issues,overlaps:[]});
  }}}
  if(slots.length>100)throw Error('This plan creates more than 100 sessions. Use fewer days or blocks, then plan the remaining sessions separately.');
  slots.sort((a,b)=>a.start-b.start||a.key.localeCompare(b.key));

@@ -17,7 +17,7 @@ const id = z.string().min(1).max(100);
 const optionalId = z.string().max(100).optional().default('');
 export function auditEntry(db: D1Database, tenant: string, action: string) { return db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now()); }
 export async function readWorkspace(db: D1Database, tenant: string) {
-    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts', 'customer_groups', 'intern_attendance', 'barn_tasks'];
+    const tables = ['resources', 'bookings', 'customers', 'memberships', 'sessions', 'reservations', 'enrollments', 'drafts', 'customer_groups', 'intern_attendance', 'barn_tasks', 'rider_horses'];
     const values = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} WHERE tenant=?`).bind(tenant).all()));
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
@@ -65,11 +65,11 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         if(['trainer','horse','intern','academy'].includes(kind)){delete details.dailyLimitMinutes;delete details.restMinutes;}
         if(['trainer','intern','academy'].includes(kind)){
-          const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/)})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
-          if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');}details.availability=hours;}
+          const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/),breaks:z.array(z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)})).max(6).optional()})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
+          if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');const breaks=[...(d.breaks??[])].sort((a,b)=>a.start.localeCompare(b.start));for(let i=0;i<breaks.length;i++){const br=breaks[i];if(br.end<=br.start||br.start<d.start||br.end>d.end||i>0&&breaks[i-1].end>br.start)throw Error('Breaks must fit inside working hours without overlapping.');}}details.availability=hours;}
         }
         if(['trainer','horse'].includes(kind)&&raw.suitableLevels!==undefined)details.suitableLevels=Array.from(new Set(z.array(nameSchema).max(50).parse(raw.suitableLevels)));
-        if(kind==='horse'){delete details.availability;if(Array.isArray(details.suitableLevels))delete details.level;}
+        if(kind==='horse'){if(raw.horseGuidelines!==undefined)details.horseGuidelines=z.object({daily:z.number().int().min(1).max(30).nullable(),weekly:z.number().int().min(1).max(150).nullable(),rest:z.number().int().min(0).max(240)}).parse(raw.horseGuidelines);delete details.availability;if(Array.isArray(details.suitableLevels))delete details.level;}
         if(kind==='rider'){
           if(raw.photoId!==undefined)details.photoId=z.string().refine(v=>v===''||photoIdPattern.test(v),'Invalid rider photo').parse(raw.photoId);
           for(const [key,value] of Object.entries(riderIntakeSchema.parse(raw)))if(value!==undefined)details[key]=value;
@@ -142,7 +142,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const pairs = [['trainer', b.trainer], ['arena', b.arena], ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
         for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinResourceAvailability(kind,b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
-        if ((details.mounted ?? true) && new Set(b.horses).size < capacity)throw Error('Assign one horse for each mounted spot, or lower the program capacity.');
+        if (details.template!=='private' && (details.mounted ?? true) && new Set(b.horses).size < capacity)throw Error('Assign one horse for each mounted spot, or lower the program capacity.');
         const sessionId = crypto.randomUUID();
         await db.batch([db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
         return;

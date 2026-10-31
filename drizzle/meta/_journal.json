@@ -92,6 +92,13 @@
       "when": 1793447819410,
       "tag": "0012_heavy_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1793448681325,
+      "tag": "0013_living_loki",
+      "breakpoints": true
     }
   ]
 }

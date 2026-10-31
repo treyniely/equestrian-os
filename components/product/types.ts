@@ -15,7 +15,7 @@ export type Resource = {
         group?: string;
         customer?: string;
         discipline?: string;
-        availability?:import('../../domain/availability').Availability;suitableLevels?:string[];description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;preferredTrainers?:string[];
+        availability?:import('../../domain/availability').Availability;suitableLevels?:string[];horseGuidelines?:{daily:number|null;weekly:number|null;rest:number};description?:string;photoId?:string;dailyLimitMinutes?:number|null;restMinutes?:number;preferredHorses?:string[];preferredTrainer?:string;preferredTrainers?:string[];
     };
 };
 export type Session = {
@@ -45,8 +45,9 @@ export type Draft = {
     audience?:string;
 };
 export type State = {
+    rider_horses?:{session:string;rider:string;horse:string;reason:string}[];
     trainer_reviews?:import('../../domain/trainer-reviews').TrainerReview[];
-    academyInfo?:{reviewsEnabled?:boolean;name:string;timezone:string};
+    academyInfo?:{reviewsEnabled?:boolean;name:string;timezone:string;availability?:import('../../domain/availability').Availability};
     intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];
     customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;

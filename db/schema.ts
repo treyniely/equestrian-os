@@ -19,3 +19,7 @@ export const barnTasks=sqliteTable('barn_tasks',{id:text('id').primaryKey(),tena
 export const trainerReviews=sqliteTable('trainer_reviews',{id:text('id').primaryKey(),tenant:text('tenant').notNull(),customer:text('customer').notNull(),trainer:text('trainer').notNull(),rating:integer('rating').notNull(),message:text('message').notNull(),status:text('status').notNull(),revision:integer('revision').notNull().default(0),updated:integer('updated').notNull()},t=>[uniqueIndex('trainer_review_family').on(t.tenant,t.customer,t.trainer),index('trainer_review_queue').on(t.tenant,t.status)]);
 
 export const scheduleBatches=sqliteTable('schedule_batches',{tenant:text('tenant').notNull(),requestKey:text('request_key').notNull(),fingerprint:text('fingerprint').notNull(),created:integer('created').notNull()},t=>[uniqueIndex('schedule_batch_retry').on(t.tenant,t.requestKey)]);
+
+export const riderHorses=sqliteTable('rider_horses',{tenant:text('tenant').notNull(),session:text('session').notNull(),rider:text('rider').notNull(),horse:text('horse').notNull(),autoReserved:integer('auto_reserved').notNull().default(0),reason:text('reason').notNull(),updated:integer('updated').notNull()},t=>[uniqueIndex('rider_horse_once').on(t.tenant,t.session,t.rider),uniqueIndex('horse_rider_once').on(t.tenant,t.session,t.horse)]);
+
+export const sessionHorsePlans=sqliteTable('session_horse_plans',{tenant:text('tenant').notNull(),session:text('session').notNull(),revision:integer('revision').notNull()},t=>[uniqueIndex('session_horse_plan_once').on(t.tenant,t.session)]);

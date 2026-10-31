@@ -1,3 +1,4 @@
+import {customerStatus} from './customer-status.ts';
 export const templates = [
     { id: 'private', name: 'Private lesson', description: 'One rider. Focused instruction.', duration: 45, capacity: 1, mounted: true },
     { id: 'group', name: 'Group lesson', description: 'A shared lesson with individual spots.', duration: 60, capacity: 6, mounted: true },
@@ -24,9 +25,10 @@ export type Customer = {
 };
 export function inSegment(c: Customer, segment: string, memberIds: string[] = []) { switch (segment) {
     case 'Needs attention': return ['failed', 'overdue'].includes(c.billing);
+    case 'Active': return customerStatus(c.billing)==='active';
     case 'Active members': return memberIds.includes(c.id);
     case 'Trials & inquiries': return ['inquiry', 'trial'].includes(c.stage);
-    case 'Inactive': return c.stage === 'inactive';
+    case 'Inactive': return customerStatus(c.billing)==='inactive';
     default: return true;
 } }
 export function eligibleRecipients(customers: Customer[], segment: string, channel: string, memberIds: string[] = []) { return customers.filter(c => inSegment(c, segment, memberIds) && !!c.adult_confirmed && (channel === 'sms' ? Boolean(c.sms_consent && c.phone) : Boolean(c.email_consent && c.email))); }

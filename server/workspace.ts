@@ -1,3 +1,4 @@
+import {customerStatus} from '../domain/customer-status.ts';
 import {stripeCustomerUrl} from '../domain/stripe-customer.ts';
 import { z } from 'zod';
 import {allowsRiderLevel} from '../domain/suitability.ts';
@@ -20,7 +21,7 @@ export async function readWorkspace(db: D1Database, tenant: string) {
     const values = await Promise.all(tables.map(table => db.prepare(`SELECT * FROM ${table} WHERE tenant=?`).bind(tenant).all()));
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
-    result.customers=result.customers.map((c:Row)=>({...c,emergency_contacts:JSON.parse(c.emergency_contacts)}));
+    result.customers=result.customers.map((c:Row)=>({...c,stage:customerStatus(c.billing),emergency_contacts:JSON.parse(c.emergency_contacts)}));
     result.resources = result.resources.map((r: Row) => ({ ...r, details: JSON.parse(r.details) }));
     result.trainer_reviews=(await db.prepare("SELECT id,trainer,rating,message,status,revision,updated FROM trainer_reviews WHERE tenant=? ORDER BY (status='pending') DESC,updated DESC LIMIT 200").bind(tenant).all()).results;
     result.audit = (await db.prepare('SELECT action,created FROM audit WHERE tenant=? ORDER BY created DESC LIMIT 30').bind(tenant).all()).results;
@@ -90,6 +91,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     if(action==='customerContacts'){await saveFamilyContacts(db,tenant,id.parse(raw.customer),raw);return;}
     if (action === 'customer') {
         const c = z.object({ id: optionalId, name: nameSchema, email: z.union([z.literal(''), z.string().email().max(200)]), phone: z.string().max(40),relationship:z.string().trim().max(60).optional(), stage: z.enum(['inquiry', 'trial', 'active', 'inactive']), billing: z.enum(['none', 'current', 'failed', 'overdue']), balance: z.coerce.number().int().min(0).max(100000000), notes: str, emailConsent: z.boolean(), smsConsent: z.boolean(),adultConfirmed:z.boolean().optional(),groupIds:z.array(id).max(100).optional() }).parse(raw);
+        c.stage=customerStatus(c.billing);
         if(c.groupIds)for(const group of new Set(c.groupIds))await resource(db,tenant,group,'customerGroup');
         if (c.id) {
             const exists = await db.prepare('SELECT id,adult_confirmed,email_consent,sms_consent FROM customers WHERE tenant=? AND id=?').bind(tenant, c.id).first();
@@ -119,8 +121,8 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         return;
     }
     if (action === 'draft') {
- const filterSchema=z.object({customerId:optionalId,segment:z.enum(['All customers','Needs attention','Active members','Trials & inquiries','Inactive']).default('All customers'),query:z.string().max(200).default(''),level:z.string().max(100).default(''),riderGroup:optionalId,customerGroup:optionalId,optin:z.enum(['','email','sms','both','neither']).default('')});
- const d=z.object({kind:z.enum(['message','automation']),name:nameSchema,segment:z.enum(['All customers','Needs attention','Active members','Trials & inquiries','Inactive']),channel:z.enum(['email','sms']),message:z.string().trim().min(1).max(2000),delay:z.coerce.number().int().min(0).max(720),filters:filterSchema.optional(),excludedIds:z.array(id).max(5000).default([])}).parse(raw);
+ const filterSchema=z.object({customerId:optionalId,segment:z.enum(['All customers','Needs attention','Active','Active members','Trials & inquiries','Inactive']).default('All customers'),query:z.string().max(200).default(''),level:z.string().max(100).default(''),riderGroup:optionalId,customerGroup:optionalId,optin:z.enum(['','email','sms','both','neither']).default('')});
+ const d=z.object({kind:z.enum(['message','automation']),name:nameSchema,segment:z.enum(['All customers','Needs attention','Active','Active members','Trials & inquiries','Inactive']),channel:z.enum(['email','sms']),message:z.string().trim().min(1).max(2000),delay:z.coerce.number().int().min(0).max(720),filters:filterSchema.optional(),excludedIds:z.array(id).max(5000).default([])}).parse(raw);
  const filters=d.filters??filterSchema.parse({segment:d.segment});for(const [value,kind] of [[filters.riderGroup,'group'],[filters.customerGroup,'customerGroup']])if(value)await resource(db,tenant,value,kind);
  const s=await readWorkspace(db,tenant);const preview=audiencePreview({...s,customerGroups:s.customer_groups} as any,filters,d.channel,d.excludedIds);
  if(preview.blocked.length)throw Error('Remove '+preview.blocked.length+' flagged contact(s) without confirmed adult status, channel consent or contact details before saving.');

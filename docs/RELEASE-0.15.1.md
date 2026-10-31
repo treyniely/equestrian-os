@@ -1,0 +1,9 @@
+# Release 0.15.1 — Customer summary alignment & payment-based status
+
+The initials tile stretches to the intrinsic height of the adjacent contact block. Edit account remains vertically centered. Small-screen wrapping and the existing narrow-mobile initials hiding rule remain.
+
+Customer account labels now show Active or Inactive, derived from the billing record: current = Active; failed, overdue, none or unknown = Inactive. The editable inquiry/trial status control is removed. Customer filters expose Active / Inactive instead of Trials & inquiries and Active members. Legacy draft segments remain accepted for compatibility, but are not offered for new selection. Payment-based segments require billing-view permission for communications; staff without billing-view permission see only the All customers segment in the UI.
+
+One shared status function drives workspace reads, customer writes and segment matching. Existing legacy stage values are normalized on read and overwritten by the derived value on a later save; no destructive data migration is needed. General account updates cannot override payment-based status. Stripe checkout/webhooks remain unconnected: activity currently reflects manual billing records, not verified Stripe charges. A manual subscription marked active alone does not make the payment record current.
+
+No dependencies, schema migrations or configuration. Rollback: restore 0.15. TypeScript, all 106 tests and production build passed. Added coverage checks all billing states, legacy inquiry/trial labels, segment matching and a failed-payment transition. Source CSS reviewed for aligned intrinsic height and responsive wrapping. Browser visual/keyboard/viewport QA remains unverified because the exact managed preview route returned net::ERR_CONNECTION_REFUSED during this release session.

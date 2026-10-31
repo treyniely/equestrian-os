@@ -32,3 +32,6 @@ Permissioned setup/scheduling assistant, consequential change previews, audited 
 
 ## 0.7 — Native mobile
 Rider and admin applications built on shared server business APIs after responsive workflows are validated.
+
+
+Release 0.19: availability-first month planning with duration-aware exact placements, day fill and reviewed day/week copying. Release 0.18 retained as Classic weekly planner, sharing the draft. See RELEASE-0.19.md for QA and limits.

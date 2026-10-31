@@ -1,3 +1,4 @@
+import {monthlyPreview,saveMonthlyPlan} from '../../../server/monthly-plan';
 import {barnAction} from '../../../server/barn';
 import {cookies} from 'next/headers';
 import {accessFor,teamAction} from '../../../server/team';
@@ -36,6 +37,8 @@ export async function POST(req: Request) {
 
         if(body.action==='reviewSettings'){await reviewSettings(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         if(body.action==='reviewModerate'){await moderateReview(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
+        if(body.action==='schedulePreview')return json({preview:await monthlyPreview(db,tenant,body.plan)});
+        if(body.action==='scheduleBatch'){await saveMonthlyPlan(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
         if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
         else if (['customerStripe', 'customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {

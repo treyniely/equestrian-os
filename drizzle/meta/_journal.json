@@ -85,6 +85,13 @@
       "when": 1793447451781,
       "tag": "0011_regular_molecule_man",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1793447819410,
+      "tag": "0012_heavy_kree",
+      "breakpoints": true
     }
   ]
 }

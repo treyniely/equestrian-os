@@ -1,7 +1,7 @@
 export const templates = [
     { id: 'private', name: 'Private lesson', description: 'One rider. Focused instruction.', duration: 45, capacity: 1, mounted: true },
     { id: 'group', name: 'Group lesson', description: 'A shared lesson with individual spots.', duration: 60, capacity: 6, mounted: true },
-    { id: 'class', name: 'Horsemanship class', description: 'Horse Sense and learning at the barn.', duration: 60, capacity: 12, mounted: false },
+    { id: 'class', name: 'Horsemanship class', description: 'Hands-on learning and care at the barn.', duration: 60, capacity: 12, mounted: false },
     { id: 'experience', name: 'Trail ride / experience', description: 'Time with horses, beyond a lesson.', duration: 60, capacity: 6, mounted: true },
     { id: 'party', name: 'Private party', description: 'Exclusive time for one organizer’s group.', duration: 90, capacity: 12, mounted: false },
     { id: 'camp', name: 'Camp / clinic', description: 'A scheduled camp or clinic session.', duration: 180, capacity: 12, mounted: false },

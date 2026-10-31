@@ -196,8 +196,8 @@ export async function validateEnrollment(db:D1Database,tenant:string,session:Row
             if (rider.details.level !== level.name)
                 throw Error('This rider does not meet the program’s selected level.');
         }
-        const trainerReservation=await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,session.id).first<Row>();
-        if(trainerReservation){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(!allowsRiderLevel('trainer',trainer.details,rider.details.level??'Beginner'))throw Error('This trainer does not teach this rider’s level.');}
+        const trainerReservations=(await db.prepare("SELECT resource FROM reservations WHERE tenant=? AND session=? AND kind='trainer'").bind(tenant,session.id).all<Row>()).results;
+        for(const trainerReservation of trainerReservations){const trainer=await resource(db,tenant,trainerReservation.resource,'trainer');if(!allowsRiderLevel('trainer',trainer.details,rider.details.level??'Beginner'))throw Error('This trainer does not teach this rider’s level.');}
         const horses = (await db.prepare("SELECT r.* FROM resources r JOIN reservations v ON r.id=v.resource AND r.tenant=v.tenant WHERE v.tenant=? AND v.session=? AND v.kind='horse'").bind(tenant, session.id).all<Row>()).results;
         if(horses.some(h=>!allowsRiderLevel('horse',JSON.parse(h.details),rider.details.level??'Beginner')))throw Error('A reserved horse is not suitable for this rider’s level.');
 

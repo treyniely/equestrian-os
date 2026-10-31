@@ -1,0 +1,11 @@
+# Release 0.16.1 — Familiar planner navigation
+
+The monthly planner now follows three explicit steps: Choose trainer/month, Add lessons, Review & publish. Trainer/month selection is a dedicated first screen rather than an expanding Change trainer control inside lesson editing. A consistent Back button stays visible while scrolling and returns review to lesson editing and lesson editing to trainer/month selection. Back changes only modal state, preserves the plan/message draft, and does not change the underlying page or publish anything.
+
+Entering a step scrolls the dialog body to its beginning and focuses the step heading. The fixed native-dialog close control, Escape and backdrop exit behavior remain unchanged. Progress uses text, numbers and completion icons alongside color. Primary actions say Continue to lesson times, Continue to review, and Publish N sessions. Busy preview/save operations disable backward navigation.
+
+Clarity audit of the affected planner: lesson block becomes lesson schedule; Offering becomes Lesson or activity; the count field is Sessions in a row. Missing trainers, offerings, locations, teaching days/weeks and an empty review selection have contextual next-step guidance. Manually omitted occurrences are preserved when reviewing again; automatically omitted occurrences are recalculated after time edits so corrected dates can become selectable. The month and trainer identity remain visible across all screens. One-trainer and whole-academy planning remain available on the initial screen.
+
+Architecture: trainer/month controls extracted into PlannerSetup; existing domain and persistence services unchanged. No dependencies, migrations, settings or permissions added. Rollback: restore 0.16.
+
+Validation: full TypeScript, 117 domain/authorization/concurrency/SQLite tests and production build passed before publication. Source audit covers Back/Continue flow, controlled-field retention, review revalidation, empty/busy states, responsive rows and close-button clearance. Browser screenshots, keyboard interaction and 390/768/1440px visual QA remain unverified because the managed preview route previously refused connections and there is no evidence of infrastructure recovery. This is not a claim that an entire-site visual audit passed.

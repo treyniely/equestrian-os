@@ -1,0 +1,1 @@
+export default function ActionArrow({up=false}:{up?:boolean}){return <svg className="action-arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={up?'M4.5 11.5l7-7m-6 0h6v6':'M4 8h8m-4-4 4 4-4 4'}/></svg>}

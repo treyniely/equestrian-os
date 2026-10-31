@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         if(body.action==='reviewModerate'){await moderateReview(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
         if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
-        else if (['customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
+        else if (['customerStripe', 'customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
             await applyAction(db, tenant, body);
         }
         else if (body.action === 'cancel') {

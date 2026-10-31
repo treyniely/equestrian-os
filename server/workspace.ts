@@ -1,3 +1,4 @@
+import {stripeCustomerUrl} from '../domain/stripe-customer.ts';
 import { z } from 'zod';
 import {allowsRiderLevel} from '../domain/suitability.ts';
 import {saveFamilyContacts} from './family-contacts.ts';
@@ -80,6 +81,11 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const write=resourceId?db.prepare('UPDATE resources SET name=?,details=? WHERE tenant=? AND id=?').bind(name,JSON.stringify(details),tenant,recordId):db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(recordId,tenant,kind,name,JSON.stringify(details));
         await db.batch([write,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
         return;
+    }
+    if(action==='customerStripe'){
+        const customer=id.parse(raw.customer),url=stripeCustomerUrl(z.string().max(400).parse(raw.url));
+        if(!await db.prepare('SELECT id FROM customers WHERE tenant=? AND id=?').bind(tenant,customer).first())throw Error('Customer not found.');
+        await db.batch([db.prepare('UPDATE customers SET stripe_customer_url=? WHERE tenant=? AND id=?').bind(url,tenant,customer),log((url?'Linked':'Removed')+' Stripe customer record: '+customer)]);return;
     }
     if(action==='customerContacts'){await saveFamilyContacts(db,tenant,id.parse(raw.customer),raw);return;}
     if (action === 'customer') {

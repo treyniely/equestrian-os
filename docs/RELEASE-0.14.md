@@ -1,0 +1,15 @@
+# Release 0.14 — Customer management & consistent actions
+
+Customer table actions are now bordered Manage buttons. Customer management starts with a muted adult-contact summary and Overview / Account details controls. Subscription and payment cards, rider rows, guardian contact cards and communication preferences have distinct surfaces, spacing and labels. Contact fields, levels, groups, consent controls and manual membership management remain available. Account fields stay mounted when switching sections to retain edits.
+
+Subscription level uses existing membership plan names/status; these are manual records, not Stripe-synchronized subscriptions. Payments show the recorded outstanding balance and billing status. Billing managers can save/remove a strictly validated Stripe customer dashboard shortcut. Billing viewers can open that link in Stripe to review payment methods/invoices/history. No card data is collected or stored. Checkout, API credentials, Stripe Connect routing, webhooks and automatic synchronization are not implemented. A link is explicitly a manually supplied reference, not a verified integration; staff must select the correct academy Stripe account and mode.
+
+Admin and family action arrows use a shared compact 14px SVG with a 2.6px stroke. Existing icon arrows match it. Secondary/text actions use thin borders, transparent backgrounds and 6–7px corners. Setup rows retain a single accessible button and add a bordered Start here / Manage affordance. Primary save/booking actions retain emphasis. Separate marketing deployment is unchanged.
+
+Architecture: existing components reused for contacts, permissions and memberships. CustomerOverview isolates the summary composition; one shared arrow component. No dependencies added. No payment-provider SDK or speculative subscription model.
+
+Migration: 0011_regular_molecule_man.sql adds customers.stripe_customer_url with an empty default. All writes use a separate billing-gated action, scoped to the selected academy. General account edits cannot modify the link. Customer-only staff receive redacted links; the family API does not select them. Existing manual financial records and consent are preserved. No new configuration or secrets.
+
+Rollback: restore the previous Site version; the additive nullable-free default column may remain safely. Do not reverse applied migrations.
+
+QA: TypeScript, 96 automated domain/authorization/SQLite tests, and production build passed before final publication. New coverage validates URL allowlisting, test/account context, tenant isolation, billing permissions/redaction, removal, preservation on contact edits and family privacy. Source review covered shared CTA padding/insets, 44px modal controls, stacked financial/contact cards at <=760px, rider wrapping and fixed modal close behavior. Browser attempt at the exact managed preview URL http://terminal.local:4173/ returned net::ERR_CONNECTION_REFUSED; 390/768/1440 viewport screenshots, keyboard interactions, zoom and visual audit remain unverified. Source review is not a visual QA pass.

@@ -1,0 +1,1 @@
+ALTER TABLE `customers` ADD `stripe_customer_url` text DEFAULT '' NOT NULL;

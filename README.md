@@ -3,7 +3,7 @@
 Owner-only development workspace for lesson businesses and riding academies. Not production software; use fictional data.
 
 ## Current release
-See docs/RELEASE-0.2.md for Programs & Services, session registrations, customer management, manual memberships and communication drafts. All financial records are manual; messages are not sent.
+See docs/RELEASE-0.2.md for Lessons & Services, session registrations, customer management, manual memberships and communication drafts. All financial records are manual; messages are not sent.
 
 Persistent resources, private lesson bookings, database-level conflict prevention, cancellation and audit history. Explicit UTC scheduling. Payments, family accounts, configurable hours, memberships, learning tools and live communications are not yet implemented.
 

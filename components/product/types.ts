@@ -4,7 +4,7 @@ export type Resource = {
     kind: string;
     name: string;
     details: {
-        ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;reviewsEnabled?:boolean;brandColor?:string;cancellationHours?:number;
+        contactInfo?:import('../../domain/academy-contact').AcademyContact;ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;archived?:boolean;brandColor?:string;cancellationHours?:number;
         level?: string;
         duration?: number;
         capacity?: number;
@@ -46,8 +46,7 @@ export type Draft = {
 };
 export type State = {
     rider_horses?:{session:string;rider:string;horse:string;reason:string}[];
-    trainer_reviews?:import('../../domain/trainer-reviews').TrainerReview[];
-    academyInfo?:{reviewsEnabled?:boolean;name:string;timezone:string;availability?:import('../../domain/availability').Availability};
+    academyInfo?:{name:string;timezone:string;availability?:import('../../domain/availability').Availability};
     intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];
     customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;

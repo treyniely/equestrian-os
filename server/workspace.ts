@@ -1,3 +1,5 @@
+import {academyContactSchema} from '../domain/academy-contact.ts';
+import {availabilitySchema} from '../domain/availability-schema.ts';
 import {customerStatus} from '../domain/customer-status.ts';
 import {stripeCustomerUrl} from '../domain/stripe-customer.ts';
 import { z } from 'zod';
@@ -22,15 +24,24 @@ export async function readWorkspace(db: D1Database, tenant: string) {
     const result: Row = {};
     tables.forEach((table, i) => { result[table] = values[i].results; });
     result.customers=result.customers.map((c:Row)=>({...c,stage:customerStatus(c.billing),emergency_contacts:JSON.parse(c.emergency_contacts)}));
-    result.resources = result.resources.map((r: Row) => ({ ...r, details: JSON.parse(r.details) }));
-    result.trainer_reviews=(await db.prepare("SELECT id,trainer,rating,message,status,revision,updated FROM trainer_reviews WHERE tenant=? ORDER BY (status='pending') DESC,updated DESC LIMIT 200").bind(tenant).all()).results;
+    result.resources = result.resources.map((r: Row) => ({ ...r, details: (()=>{const d=JSON.parse(r.details);delete d.reviewsEnabled;return d})() }));
     result.audit = (await db.prepare('SELECT action,created FROM audit WHERE tenant=? ORDER BY created DESC LIMIT 30').bind(tenant).all()).results;
     return result;
 }
 async function resource(db: D1Database, tenant: string, value: string, kind: string): Promise<Row> { const r = await db.prepare('SELECT * FROM resources WHERE tenant=? AND id=? AND kind=?').bind(tenant, value, kind).first<Row>(); if (!r)
-    throw Error('Choose a valid ' + kind + '.'); return { ...r, details: JSON.parse(r.details) }; }
+    throw Error('Choose a valid ' + kind + '.'); return { ...r, details: (()=>{const d=JSON.parse(r.details);delete d.reviewsEnabled;return d})() }; }
 export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     const log = (s: string) => auditEntry(db, tenant, s), action = z.string().parse(raw.action);
+    if(['reviewSettings','reviewModerate'].includes(action))throw Error('Trainer reviews are no longer available.');
+    if(action==='academyContact'){
+        const contact=academyContactSchema.parse(raw.contactInfo);const academy=await db.prepare("SELECT id FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();if(!academy)throw Error('Add your academy name first.');
+        await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.contactInfo',json(?)) WHERE tenant=? AND id=? AND kind='academy'").bind(JSON.stringify(contact),tenant,academy.id),log('Updated academy location, contact and community settings')]);return;
+    }
+    if(action==='deleteOffering'||action==='restoreOffering'){
+        const offering=await resource(db,tenant,id.parse(raw.id),'lesson'),archived=action==='deleteOffering';
+        await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?)) WHERE tenant=? AND id=? AND kind='lesson'").bind(JSON.stringify(archived),tenant,offering.id),log((archived?'Removed offering: ':'Restored offering: ')+offering.name)]);
+        return;
+    }
     if (action === 'resource' || action === 'program') {
         const kind = action === 'program' ? 'lesson' : z.enum(['trainer', 'horse', 'arena', 'rider', 'level', 'discipline', 'group', 'customerGroup', 'intern', 'academy']).parse(raw.kind);
         const name = nameSchema.parse(raw.name);
@@ -65,8 +76,8 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         if(['trainer','horse','intern','academy'].includes(kind)){delete details.dailyLimitMinutes;delete details.restMinutes;}
         if(['trainer','intern','academy'].includes(kind)){
-          const hours=z.object({timezone:z.string().refine(isTimeZone),days:z.array(z.object({enabled:z.boolean(),start:z.string().regex(/^\d{2}:\d{2}$/),end:z.string().regex(/^\d{2}:\d{2}$/),breaks:z.array(z.object({start:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),end:z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)})).max(6).optional()})).length(7),datesOff:z.array(z.string().refine(isCalendarDate,'Choose a valid date.')).max(366).optional().default([])}).optional().parse(raw.availability);
-          if(hours){for(const d of hours.days){if(d.start>'23:59'||d.end>'23:59'||Number(d.start.slice(3))>59||Number(d.end.slice(3))>59||d.enabled&&d.end<=d.start)throw Error('Availability must end after it starts.');const breaks=[...(d.breaks??[])].sort((a,b)=>a.start.localeCompare(b.start));for(let i=0;i<breaks.length;i++){const br=breaks[i];if(br.end<=br.start||br.start<d.start||br.end>d.end||i>0&&breaks[i-1].end>br.start)throw Error('Breaks must fit inside working hours without overlapping.');}}details.availability=hours;}
+          const hours=availabilitySchema.optional().parse(raw.availability);
+          if(hours)details.availability=hours;
         }
         if(['trainer','horse'].includes(kind)&&raw.suitableLevels!==undefined)details.suitableLevels=Array.from(new Set(z.array(nameSchema).max(50).parse(raw.suitableLevels)));
         if(kind==='horse'){if(raw.horseGuidelines!==undefined)details.horseGuidelines=z.object({daily:z.number().int().min(1).max(30).nullable(),weekly:z.number().int().min(1).max(150).nullable(),rest:z.number().int().min(0).max(240)}).parse(raw.horseGuidelines);delete details.availability;if(Array.isArray(details.suitableLevels))delete details.level;}
@@ -136,6 +147,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         if (existing)
             return;
         const program = await resource(db, tenant, b.program, 'lesson');
+        if(program.details.archived)throw Error('This offering was deleted. Choose an active offering.');
         const details = program.details;
         const duration = details.duration ?? 45, capacity = details.capacity ?? 1;
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);

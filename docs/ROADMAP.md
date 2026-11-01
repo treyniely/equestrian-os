@@ -35,3 +35,5 @@ Rider and admin applications built on shared server business APIs after responsi
 
 
 Release 0.19: availability-first month planning with duration-aware exact placements, day fill and reviewed day/week copying. Release 0.18 retained as Classic weekly planner, sharing the draft. See RELEASE-0.19.md for QA and limits.
+
+Release 0.20: academy location/contact information and optional GroupMe portal invitation; weekly operating hours with date-specific replacements; reversible offering deletion; trainer reviews removed from admin, portal and active APIs. See RELEASE-0.20.md.

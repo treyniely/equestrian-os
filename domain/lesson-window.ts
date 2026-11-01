@@ -1,11 +1,11 @@
-import {withinResourceAvailability,type Availability} from './availability.ts';import {localDate,taskTime} from './barn.ts';
+import {withinResourceAvailability,hoursForDate,type Availability} from './availability.ts';import {localDate,taskTime} from './barn.ts';
 type WindowResource={kind:string;availability?:Availability;work:{start:number;end:number}[]};
 type WindowInput={date:string;from:string;until:string;zone:string;business?:Availability;resources:WindowResource[]};
 function windowContext(input:WindowInput){
  const {date,from,until,zone,business,resources}=input,start=taskTime(date,from,zone),finish=taskTime(date,until,zone),points=new Set<number>([start,finish]);
  const schedules:Availability[]=[...(business?[business]:[]),...resources.flatMap(r=>r.kind==='horse'?[]:r.availability?[r.availability]:business?[]:[{timezone:'UTC',days:Array.from({length:7},()=>({enabled:true,start:'08:00',end:'18:00'}))}])];
  if(!Number.isFinite(start)||!Number.isFinite(finish)||finish<=start)return {start,finish,boundaries:[],free:()=>false};
- for(const schedule of schedules){const base=localDate(start,schedule.timezone);for(const offset of [-1,0,1]){const day=new Date(base+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+offset);const local=day.toISOString().slice(0,10),hours=schedule.days[day.getUTCDay()];if(!hours?.enabled)continue;for(const time of [hours.start,hours.end,...(hours.breaks??[]).flatMap(b=>[b.start,b.end])]){const value=taskTime(local,time,schedule.timezone);if(value>start&&value<finish)points.add(value)}}}
+ for(const schedule of schedules){const base=localDate(start,schedule.timezone);for(const offset of [-1,0,1]){const day=new Date(base+'T12:00:00Z');day.setUTCDate(day.getUTCDate()+offset);const local=day.toISOString().slice(0,10),hours=hoursForDate(schedule,local);if(!hours?.enabled)continue;for(const time of [hours.start,hours.end,...(hours.breaks??[]).flatMap(b=>[b.start,b.end])]){const value=taskTime(local,time,schedule.timezone);if(value>start&&value<finish)points.add(value)}}}
  for(const r of resources)for(const work of r.work)for(const value of [work.start,work.end])if(value>start&&value<finish)points.add(value);
  return {start,finish,boundaries:[...points].sort((a,b)=>a-b),free:(a:number,b:number)=>resources.every(r=>withinResourceAvailability(r.kind,a,b,business,r.availability)&&!r.work.some(w=>a<w.end&&w.start<b))};
 }

@@ -1,3 +1,4 @@
+import {readBenefits} from './plans.ts';
 import {academyContactSchema} from '../domain/academy-contact.ts';
 import {availabilitySchema} from '../domain/availability-schema.ts';
 import {customerStatus} from '../domain/customer-status.ts';
@@ -25,6 +26,7 @@ export async function readWorkspace(db: D1Database, tenant: string) {
     tables.forEach((table, i) => { result[table] = values[i].results; });
     result.customers=result.customers.map((c:Row)=>({...c,stage:customerStatus(c.billing),emergency_contacts:JSON.parse(c.emergency_contacts)}));
     result.resources = result.resources.map((r: Row) => ({ ...r, details: (()=>{const d=JSON.parse(r.details);delete d.reviewsEnabled;return d})() }));
+    result.benefits=await readBenefits(db,tenant);
     result.audit = (await db.prepare('SELECT action,created FROM audit WHERE tenant=? ORDER BY created DESC LIMIT 30').bind(tenant).all()).results;
     return result;
 }
@@ -164,7 +166,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         if (!session)
             throw Error('Session unavailable.');
         const {rider,program}=await validateEnrollment(db,tenant,session,b.rider);
-        await db.batch([db.prepare('INSERT INTO enrollments VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, b.session, b.rider), log('Added ' + rider.name + ' to ' + program.name)]);
+        const enrollment=crypto.randomUUID();await db.batch([...(raw.requireCredit?[db.prepare('INSERT INTO booking_requirements VALUES(?,?)').bind(tenant,enrollment)]:[]),db.prepare('INSERT INTO enrollments VALUES(?,?,?,?)').bind(enrollment, tenant, b.session, b.rider), log('Added ' + rider.name + ' to ' + program.name)]);
         return;
     }
     if (action === 'party') {

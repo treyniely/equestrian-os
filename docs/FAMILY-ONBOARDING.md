@@ -16,3 +16,5 @@ The pre-booking checklist surfaces rider creation and optional contact completio
 Trainer reviews are excluded from the product. Families choose trainers using profiles, suitability and their own preferences.
 
 Academy contact details are academy-managed business information. An optional GroupMe invitation appears on Home and Account only for confirmed adult family accounts when enabled by the academy. Joining is voluntary in GroupMe and does not change EO communication consent or synchronize chat content.
+
+Plan allowances are assigned by billing-management staff to a rider or a shared family, using recorded paid-period snapshots. Families can view remaining sessions and book against them; they cannot grant or alter their own allowances. Legacy name-only memberships grant no unlimited entitlement. Monthly renewals are staff-recorded until verified Stripe billing is connected. See RELEASE-0.21.md.

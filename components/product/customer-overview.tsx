@@ -5,6 +5,7 @@ import type {Customer} from '../../domain/programs';
 import {can,roleGrants} from '../../domain/permissions';
 import type {State,Save,Resource,Membership} from './types';
 import Dialog from './dialog';
+import CustomerPlans from './customer-plans';
 import FamilyContacts from './family-contacts';
 import ContactSubscriptions from './contact-subscriptions';
 const money=(value:number)=> (value/100).toLocaleString('en-US',{style:'currency',currency:'USD'});
@@ -12,8 +13,7 @@ export default function CustomerOverview({customer:c,state,save,busy,onRider,onM
  const [link,setLink]=useState(false),grants=state.permissions??roleGrants('owner'),billingView=can(grants,'billing'),billingManage=can(grants,'billing',true),riders=state.resources.filter(r=>r.kind==='rider'&&r.details.customer===c.id),plans=state.memberships.filter(m=>m.customer===c.id),attention=['failed','overdue'].includes(c.billing);
  return <div className="customer-overview">
  {billingView&&<div className="customer-financial-grid">
- <section className="customer-section customer-plan"><div className="customer-section-title"><span className="customer-section-icon"><Layers size={19}/></span><div><h3>Subscription</h3><p>Plan & membership status</p></div><span className="pill">Manual records</span></div>
- <div className="customer-plan-list">{plans.length?plans.map(m=><article key={m.id}><div><strong>{m.plan}</strong><span className={'pill '+(m.status==='active'?'complete':'')}>{m.status}</span></div>{billingManage&&<button type="button" className="secondary" onClick={()=>onMembership(m)}>Manage plan</button>}</article>):<div className="customer-section-empty"><strong>No subscription recorded</strong><p>Add the family’s plan to keep their membership in view.</p></div>}</div>{billingManage&&<button type="button" className="secondary" onClick={()=>onMembership(null)}>+ Add membership</button>}</section>
+ <CustomerPlans customer={c.id} state={state} save={save} busy={busy} onMembership={onMembership}/>
  <section className={'customer-section customer-payments'+(attention?' needs-attention':'')}><div className="customer-section-title"><span className="customer-section-icon"><CreditCard size={19}/></span><div><h3>Payments</h3><p>Balance & Stripe customer record</p></div></div><div className="customer-balance"><strong>{money(c.balance)}</strong><span>Outstanding · manual record</span><span className={'pill '+(attention?'warning':c.billing==='current'?'complete':'')}>{c.billing==='none'?'No billing record':c.billing==='failed'?'Payment failed':c.billing==='overdue'?'Balance overdue':'Billing current'}</span></div>
  {c.stripe_customer_url?<><a className="primary customer-stripe-link" href={c.stripe_customer_url} target="_blank" rel="noopener noreferrer">Open customer in Stripe <ArrowUpRight size={16}/></a><small>Payment methods, invoices and payment history open in Stripe.</small></>:<p className="customer-payment-note">No Stripe customer linked yet. Payment details will be available after a record is linked.</p>}
  {billingManage&&<button type="button" className="text-button" onClick={()=>setLink(true)}>{c.stripe_customer_url?'Change Stripe link':'Link Stripe customer'}</button>}<small>Stripe checkout and automatic subscription sync are not connected yet.</small></section>

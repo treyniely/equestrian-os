@@ -6,7 +6,8 @@ export const templates = [
     { id: 'experience', name: 'Trail ride / experience', description: 'Time with horses, beyond a lesson.', duration: 60, capacity: 6, mounted: true },
     { id: 'party', name: 'Private party', description: 'Exclusive time for one organizer’s group.', duration: 90, capacity: 12, mounted: false },
     { id: 'camp', name: 'Camp / clinic', description: 'A scheduled camp or clinic session.', duration: 180, capacity: 12, mounted: false },
-    { id: 'event', name: 'Event', description: 'A gathering with a guest list.', duration: 60, capacity: 20, mounted: false }
+    { id: 'event', name: 'Event', description: 'A gathering with a guest list.', duration: 60, capacity: 20, mounted: false },
+    { id: 'custom', name: 'Custom offering', description: 'Your own activity, duration and price.', duration: 60, capacity: 1, mounted: false }
 ] as const;
 export type Customer = {
     relationship?:string;stripe_customer_url?:string;

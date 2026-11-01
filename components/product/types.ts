@@ -4,7 +4,7 @@ export type Resource = {
     kind: string;
     name: string;
     details: {
-        contactInfo?:import('../../domain/academy-contact').AcademyContact;ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;archived?:boolean;brandColor?:string;cancellationHours?:number;
+        buckets?:import('../../domain/plans').PlanDefinition['buckets'];kind?:'monthly'|'pack';validDays?:number;scope?:'rider'|'family';contactInfo?:import('../../domain/academy-contact').AcademyContact;ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;archived?:boolean;brandColor?:string;cancellationHours?:number;
         level?: string;
         duration?: number;
         capacity?: number;
@@ -53,7 +53,7 @@ export type State = {
     resources: Resource[];
     bookings: any[];
     customers: Customer[];
-    memberships: Membership[];
+    benefits?:import('../../domain/plans').Benefit[];memberships: Membership[];
     sessions: Session[];
     enrollments: {
         id: string;

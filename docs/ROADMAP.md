@@ -37,3 +37,7 @@ Rider and admin applications built on shared server business APIs after responsi
 Release 0.19: availability-first month planning with duration-aware exact placements, day fill and reviewed day/week copying. Release 0.18 retained as Classic weekly planner, sharing the draft. See RELEASE-0.19.md for QA and limits.
 
 Release 0.20: academy location/contact information and optional GroupMe portal invitation; weekly operating hours with date-specific replacements; reversible offering deletion; trainer reviews removed from admin, portal and active APIs. See RELEASE-0.20.md.
+
+Release 0.21: Custom as eighth offering template; editable per-offering prices; monthly plans and prepaid packs with rider/family allowances, immutable paid-period snapshots, booking-time credit enforcement and customer balances. Staff record paid activations/renewals until Stripe checkout/webhooks are integrated. Legacy name-only memberships do not grant unlimited bookings.
+
+Next staff-operations discovery: payroll setup with effective-dated hourly/per-session/mixed rates, approved actual work and a reviewed provider export. Scheduling is an input, not proof of work or pay. Tax calculation and wage disbursement stay with a payroll provider. See PAYROLL-DESIGN.md for the flow, boundaries and pilot decisions. This module is not implemented in 0.21.

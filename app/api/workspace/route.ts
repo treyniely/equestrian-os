@@ -1,3 +1,4 @@
+import {planAction} from '../../../server/plans';
 import {recommendSessionHorses,assignSessionHorses} from '../../../server/session-horses';
 import {monthlyPreview,saveMonthlyPlan} from '../../../server/monthly-plan';
 import {barnAction} from '../../../server/barn';
@@ -39,6 +40,7 @@ export async function POST(req: Request) {
         if(body.action==='sessionHorses'){await assignSessionHorses(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         if(body.action==='schedulePreview')return json({preview:await monthlyPreview(db,tenant,body.plan)});
         if(body.action==='scheduleBatch'){if(body.announcement&&(!can(grants,'communications',true)||!can(grants,'customers')))return json({error:'Customer viewing and communication management permission are required to prepare a launch email.'},403);await saveMonthlyPlan(db,tenant,body,new URL(req.url).origin);return json(await responseState(db,tenant,grants,role));}
+        if(['savePlan','grantPlan'].includes(body.action)){await planAction(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
         if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
         else if (['academyContact', 'deleteOffering', 'restoreOffering', 'customerStripe', 'customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
@@ -63,6 +65,6 @@ export async function POST(req: Request) {
     }
     catch (e) {
         const message = e instanceof ZodError ? 'Please check the form fields and try again.' : e instanceof Error ? e.message : 'Unable to save';
-        return json({ error: message.includes('horse_daily_limit')?'This horse would exceed its configured daily work limit. Choose another horse or time.':message.includes('horse_rest')?'This horse needs its configured rest buffer between sessions.':message.includes('resource_conflict') || message.includes('rider_conflict') ? 'A resource or rider is already booked at that time.' : message.includes('session_full') ? 'This session has no remaining spots.' : message.includes('UNIQUE') ? 'This registration or request already exists.' : message.includes('D1_') ? 'Unable to save. Refresh and try again.' : message }, ['AUTH','ACCESS_REVOKED'].includes(message)?403:400);
+        return json({ error: message.includes('allowance_unavailable')?'No included sessions remain for this offering and lesson date. Check the family’s plan.':message.includes('benefit_period_overlap')?'This plan already has a period covering those dates.':message.includes('horse_daily_limit')?'This horse would exceed its configured daily work limit. Choose another horse or time.':message.includes('horse_rest')?'This horse needs its configured rest buffer between sessions.':message.includes('resource_conflict') || message.includes('rider_conflict') ? 'A resource or rider is already booked at that time.' : message.includes('session_full') ? 'This session has no remaining spots.' : message.includes('UNIQUE') ? 'This registration or request already exists.' : message.includes('D1_') ? 'Unable to save. Refresh and try again.' : message }, ['AUTH','ACCESS_REVOKED'].includes(message)?403:400);
     }
 }

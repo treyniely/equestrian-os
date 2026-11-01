@@ -44,7 +44,7 @@ export type Draft = {
     created: number;
     audience?:string;
 };
-export type State = {
+export type State = {booking_changes?:{id:string;rider_name:string;customer_name:string;kind:string;reason:string;created:number;read_at:number|null;previous_start:number;next_start:number|null}[];
     rider_horses?:{session:string;rider:string;horse:string;reason:string}[];
     academyInfo?:{name:string;timezone:string;availability?:import('../../domain/availability').Availability};
     intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];

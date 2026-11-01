@@ -1,0 +1,1 @@
+export function bookingRider(riders:{id:string}[],selected:string,changingRider?:string){const wanted=changingRider||selected;if(riders.some(r=>r.id===wanted))return wanted;return riders.length===1?riders[0].id:''}

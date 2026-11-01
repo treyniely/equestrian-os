@@ -31,3 +31,5 @@ export const benefitOfferings=sqliteTable('benefit_offerings',{tenant:text('tena
 export const bookingCredits=sqliteTable('booking_credits',{tenant:text('tenant').notNull(),enrollment:text('enrollment').notNull(),bucket:text('bucket').notNull()},t=>[uniqueIndex('booking_credit_once').on(t.tenant,t.enrollment),index('booking_credit_usage').on(t.tenant,t.bucket)]);
 
 export const bookingRequirements=sqliteTable('booking_requirements',{tenant:text('tenant').notNull(),enrollment:text('enrollment').notNull()},t=>[uniqueIndex('booking_requirement_once').on(t.tenant,t.enrollment)]);
+
+export const bookingChanges=sqliteTable('booking_changes',{id:text('id').primaryKey(),tenant:text('tenant').notNull(),customer:text('customer').notNull(),rider:text('rider').notNull(),kind:text('kind').notNull(),previousSession:text('previous_session').notNull(),nextSession:text('next_session'),reason:text('reason').notNull(),created:integer('created').notNull(),readAt:integer('read_at')},t=>[index('booking_change_inbox').on(t.tenant,t.created)]);

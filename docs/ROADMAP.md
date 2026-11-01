@@ -43,3 +43,5 @@ Release 0.21: Custom as eighth offering template; editable per-offering prices; 
 Next staff-operations discovery: payroll setup with effective-dated hourly/per-session/mixed rates, approved actual work and a reviewed provider export. Scheduling is an input, not proof of work or pay. Tax calculation and wage disbursement stay with a payroll provider. See PAYROLL-DESIGN.md for the flow, boundaries and pilot decisions. This module is not implemented in 0.21.
 
 Release 0.22: riding-space selection is optional throughout scheduling; trainer/time planning works without any space profiles. Branding offers two curated logo palettes, a guided custom-color match and consistent portal theme tokens. Color-contrast checks are scoped; whole-site accessibility remains an outstanding visual/interaction audit.
+
+Release 0.24: Month/Week/Day calendar with filters and retained legacy bookings; rider-aware booking balances and required change reasons with atomic in-app staff updates; segmented Familiar faces with direct per-rider favorites. See RELEASE-0.24.md for verification limits.

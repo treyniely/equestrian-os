@@ -54,7 +54,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
             const t = templates.find(t => t.id === raw.template);
             if (!t)
                 throw Error('Choose a starting template.');
-            details = { ...details, template: t.id, duration: z.coerce.number().int().min(15).max(720).parse(raw.duration), capacity: t.id === 'private' ? 1 : z.coerce.number().int().min(1).max(100).parse(raw.capacity), mounted: z.boolean().parse(raw.mounted), price: z.coerce.number().int().min(0).max(10000000).parse(raw.price), access: z.enum(['paid', 'free', 'membership']).parse(raw.access), level: optionalId.parse(raw.level), discipline: optionalId.parse(raw.discipline) };
+            details = { ...details, description:raw.description===undefined?(details.description??''):z.string().trim().max(800).parse(raw.description), template: t.id, duration: z.coerce.number().int().min(15).max(720).parse(raw.duration), capacity: t.id === 'private' ? 1 : z.coerce.number().int().min(1).max(100).parse(raw.capacity), mounted: z.boolean().parse(raw.mounted), price: z.coerce.number().int().min(0).max(10000000).parse(raw.price), access: z.enum(['paid', 'free', 'membership']).parse(raw.access), level: optionalId.parse(raw.level), discipline: optionalId.parse(raw.discipline) };
             if (details.level)
                 await resource(db, tenant, details.level, 'level');
             if (details.discipline)
@@ -125,6 +125,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         if (!await db.prepare('SELECT id FROM customers WHERE tenant=? AND id=?').bind(tenant, m.customer).first())
             throw Error('Customer not found.');
         if (m.id) {
+            if(await db.prepare('SELECT id FROM rider_subscriptions WHERE tenant=? AND id=?').bind(tenant,m.id).first())throw Error('Manage this online subscription in Stripe.');
             if (!await db.prepare('SELECT id FROM memberships WHERE tenant=? AND id=? AND customer=?').bind(tenant, m.id, m.customer).first())
                 throw Error('Membership not found.');
             await db.batch([db.prepare('UPDATE memberships SET plan=?,status=?,updated=? WHERE tenant=? AND id=?').bind(m.plan, m.status, Date.now(), tenant, m.id), log('Updated manual membership: ' + m.plan + ' → ' + m.status)]);

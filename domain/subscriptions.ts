@@ -1,0 +1,7 @@
+import {planSchema,type PlanDefinition} from './plans.ts';
+export type RiderSubscription={id:string;customer:string;rider:string;plan:string;name:string;price:number;status:string;periodEnd:number|null;cancelAtEnd:boolean;nextName?:string;nextPrice?:number;dashboardUrl?:string};
+export type BillingSummary={configured:boolean;connected:boolean;live:boolean;subscriptions:RiderSubscription[];plans:{id:string;definition:PlanDefinition;ready:boolean}[]};
+export function purchasablePlan(raw:unknown){const plan=planSchema.parse(raw);if(plan.kind!=='monthly'||plan.scope!=='rider'||plan.price<50)throw Error('Online subscriptions need a monthly, per-rider plan priced at least $0.50.');return plan;}
+export function canonicalPlan(raw:unknown){const p=purchasablePlan(raw);return JSON.stringify({...p,id:undefined});}
+export function subscriptionLabel(status:string){return ({active:'Active',trialing:'Trial',past_due:'Payment needs attention',unpaid:'Payment overdue',incomplete:'Payment incomplete',incomplete_expired:'Checkout expired',canceled:'Canceled',pending:'Checkout pending',paused:'Paused',disconnected:'Payment account disconnected'} as Record<string,string>)[status]??'Processing';}
+export function recurringTotal(subscriptions:RiderSubscription[]){return subscriptions.filter(s=>['active','trialing','past_due','unpaid','incomplete','paused'].includes(s.status)).reduce((sum,s)=>sum+s.price,0);}

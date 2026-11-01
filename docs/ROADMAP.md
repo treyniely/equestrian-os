@@ -45,3 +45,5 @@ Next staff-operations discovery: payroll setup with effective-dated hourly/per-s
 Release 0.22: riding-space selection is optional throughout scheduling; trainer/time planning works without any space profiles. Branding offers two curated logo palettes, a guided custom-color match and consistent portal theme tokens. Color-contrast checks are scoped; whole-site accessibility remains an outstanding visual/interaction audit.
 
 Release 0.24: Month/Week/Day calendar with filters and retained legacy bookings; rider-aware booking balances and required change reasons with atomic in-app staff updates; segmented Familiar faces with direct per-rider favorites. See RELEASE-0.24.md for verification limits.
+
+Release 0.26: catalog-first rider enrollment, academy Payments setup and Stripe Connect recurring rider-subscription integration with immutable credit periods and EO subscription management. Integration is disabled pending secure runtime configuration, Stripe sandbox verification and live billing approval. Paid one-off Checkout/refund/dispute handling are subsequent work. See STRIPE-BILLING.md and RELEASE-0.26.md.

@@ -1,4 +1,6 @@
 'use client';
+import ScheduleUndoToast from './schedule-undo-toast';
+import type {ScheduleUndoReceipt} from '../../domain/schedule-undo';
 import CategoryLabel from './category-label';
 import ActionArrow from './action-arrow';
 
@@ -26,6 +28,7 @@ const empty: State = { resources: [], bookings: [], customers: [], memberships: 
 const nav = [['Overview', LayoutDashboard], ['Calendar', CalendarDays], ['Customers', BookUser], ['Lessons & Services', BookOpen], ['Riders', Users], ['Horses', HorseIcon], ['Trainers', UserRound], ['Riding spaces', MapPin], ['Academy setup', Settings], ['Barn team',ClipboardList],['Team & Access',ShieldCheck],['Roadmap', ShieldCheck]] as const;
 const kinds: Record<string, string> = { Riders: 'rider', Horses: 'horse', Trainers: 'trainer', 'Riding spaces': 'arena' };
 export default function Workspace() {
+    const [scheduleUndo,setScheduleUndo]=useState<ScheduleUndoReceipt|null>(null);
     const [state, setState] = useState<State>(empty), [view, setView] = useState('Overview'), [loading, setLoading] = useState(true), [auth, setAuth] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [mobile, setMobile] = useState(false), [resourceKind, setResourceKind] = useState(''), [query, setQuery] = useState(''), [intent,setIntent]=useState(''),[contactParentId,setContactParentId]=useState(''),[uploadingLogo,setUploadingLogo]=useState(false),[preparedLogo,setPreparedLogo]=useState<File|null>(null),[preparingLogo,setPreparingLogo]=useState(false);
     useEffect(()=>{setPreparedLogo(null);setPreparingLogo(false)},[resourceKind]);
     useEffect(() => { fetch('/api/workspace').then(async (r) => { if (r.status === 401) {
@@ -35,15 +38,17 @@ export default function Workspace() {
         error: string;
     }; if (!r.ok)
         throw Error(d.error); setState(d);if(d.currentRole==='intern')setView('Barn team'); }).catch(e => setError(e.message)).finally(() => setLoading(false)); }, []);
-    const save: Save = async (data) => { setBusy(true); setError(''); try {
+    const save: Save = async (data,onSaved) => { setBusy(true); setError(''); try {
         const r = await fetch('/api/workspace', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
         const d = await r.json() as State & {
-            error: string;
+            error: string;scheduleUndo?:ScheduleUndoReceipt;
         };
         if (!r.ok)
             throw Error(d.error);
-        setState(d);
-        setNotice(data.action === 'draft' ? 'Draft saved. Nothing has been sent.' : 'Saved to your academy workspace.');
+        setState(d);onSaved?.(d);
+        if(d.scheduleUndo)setScheduleUndo(d.scheduleUndo);
+        if(data.action==='undoSchedule')setScheduleUndo(current=>current?.token===data.token?null:current);
+        setNotice(['session','scheduleBatch','undoSchedule'].includes(String(data.action))?'':data.action === 'draft' ? 'Draft saved. Nothing has been sent.' : 'Saved to your academy workspace.');
         return true;
     }
     catch (e) {
@@ -77,5 +82,6 @@ export default function Workspace() {
  {contactParentId&&can(grants,'communications',true)&&state.customers.find(c=>c.id===contactParentId)&&<ParentContact customer={state.customers.find(c=>c.id===contactParentId)!} onClose={()=>setContactParentId('')}/>}
  {resourceKind&&!['rider','horse','trainer'].includes(resourceKind) && <Dialog title={resourceKind==='academy'?'Academy name & logo':'Add '+(resourceKind==='arena'?'a riding space':resourceKind)} onClose={() => setResourceKind('')}><form onSubmit={async (e) => { e.preventDefault(); const f = new FormData(e.currentTarget); setUploadingLogo(true);try{let photoId=resources('academy')[0]?.details.photoId??'';const file=f.get('photo') as File|null;if(file?.size){if(resourceKind==='academy'){if(!preparedLogo)throw Error('Wait for a prepared logo or choose a valid image.');photoId=await uploadPreparedLogo(preparedLogo)}else photoId=await upload(file);}if (await save({ action: 'resource',id:resourceKind==='academy'?resources('academy')[0]?.id:undefined,photoId:resourceKind==='academy'?photoId:undefined,cancellationHours:resourceKind==='academy'?Number(f.get('cancellationHours')):undefined,kind: resourceKind, name: f.get('name'), level: f.get('level'), group: f.get('group') ?? '', customer: f.get('customer') ?? '' }))
         setResourceKind('');}catch(e){setError(e instanceof Error?e.message:'Unable to upload logo.')}finally{setUploadingLogo(false)} }}><label>Name<input name="name" autoFocus required maxLength={100} defaultValue={resourceKind==='academy'?resources('academy')[0]?.name:''}/></label>{resourceKind==='academy'&&<><AcademyLogoUpload photoId={resources('academy')[0]?.details.photoId} onPrepared={setPreparedLogo} onBusy={setPreparingLogo}/><label>Online cancellation / reschedule notice · hours<input name="cancellationHours" type="number" min={0} max={720} required defaultValue={resources('academy')[0]?.details.cancellationHours??24}/></label><small>Inside this window, families contact the academy for changes. Existing financial records are unaffected.</small></>}<button className="primary submit" disabled={busy||uploadingLogo||preparingLogo}>{busy||uploadingLogo ? 'Saving…' : <>Save and continue <ActionArrow/></>}</button></form></Dialog>}
+ {scheduleUndo&&<ScheduleUndoToast key={scheduleUndo.token} receipt={scheduleUndo} busy={busy} onDismiss={()=>setScheduleUndo(current=>current?.token===scheduleUndo.token?null:current)} onUndo={async()=>{const token=scheduleUndo.token;await save({action:'undoSchedule',token});setScheduleUndo(current=>current?.token===token?null:current)}}/>}
  </div></FeedbackContext.Provider>;
 }

@@ -47,3 +47,5 @@ Release 0.22: riding-space selection is optional throughout scheduling; trainer/
 Release 0.24: Month/Week/Day calendar with filters and retained legacy bookings; rider-aware booking balances and required change reasons with atomic in-app staff updates; segmented Familiar faces with direct per-rider favorites. See RELEASE-0.24.md for verification limits.
 
 Release 0.26: catalog-first rider enrollment, academy Payments setup and Stripe Connect recurring rider-subscription integration with immutable credit periods and EO subscription management. Integration is disabled pending secure runtime configuration, Stripe sandbox verification and live billing approval. Paid one-off Checkout/refund/dispute handling are subsequent work. See STRIPE-BILLING.md and RELEASE-0.26.md.
+
+Release 0.29: ephemeral five-second live-schedule Undo; adult-first customer creation with linked riders; review-before-save messaging; staff-only horse care records/documents/manual due dates. No messaging delivery or clinical automation. See RELEASE-0.29.md and HORSE-HEALTH-DESIGN.md.

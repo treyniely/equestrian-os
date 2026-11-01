@@ -134,6 +134,20 @@
       "when": 1793543479972,
       "tag": "0018_bouncy_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793564245096,
+      "tag": "0019_lyrical_guardian",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793564677603,
+      "tag": "0020_big_masque",
+      "breakpoints": true
     }
   ]
 }

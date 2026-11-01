@@ -1,3 +1,4 @@
+import {scheduleUndoWrite} from './schedule-undo.ts';
 import {offeringColorMap,nextOfferingTone,isOfferingTone} from '../domain/offering-colors.ts';
 import {readBenefits} from './plans.ts';
 import {academyContactSchema} from '../domain/academy-contact.ts';
@@ -144,18 +145,18 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
     }
     if (action === 'draft') {
  const filterSchema=z.object({customerId:optionalId,segment:z.enum(['All customers','Needs attention','Active','Active members','Trials & inquiries','Inactive']).default('All customers'),query:z.string().max(200).default(''),level:z.string().max(100).default(''),riderGroup:optionalId,customerGroup:optionalId,optin:z.enum(['','email','sms','both','neither']).default('')});
- const d=z.object({kind:z.enum(['message','automation']),name:nameSchema,segment:z.enum(['All customers','Needs attention','Active','Active members','Trials & inquiries','Inactive']),channel:z.enum(['email','sms']),message:z.string().trim().min(1).max(2000),delay:z.coerce.number().int().min(0).max(720),filters:filterSchema.optional(),excludedIds:z.array(id).max(5000).default([])}).parse(raw);
+ const d=z.object({kind:z.enum(['message','automation']),name:nameSchema,segment:z.enum(['All customers','Needs attention','Active','Active members','Trials & inquiries','Inactive']),channel:z.enum(['email','sms']),subject:z.string().trim().min(1).max(200).optional(),message:z.string().trim().min(1).max(2000),delay:z.coerce.number().int().min(0).max(720),filters:filterSchema.optional(),excludedIds:z.array(id).max(5000).default([])}).parse(raw);
  const filters=d.filters??filterSchema.parse({segment:d.segment});for(const [value,kind] of [[filters.riderGroup,'group'],[filters.customerGroup,'customerGroup']])if(value)await resource(db,tenant,value,kind);
  const s=await readWorkspace(db,tenant);const preview=audiencePreview({...s,customerGroups:s.customer_groups} as any,filters,d.channel,d.excludedIds);
  if(preview.blocked.length)throw Error('Remove '+preview.blocked.length+' flagged contact(s) without confirmed adult status, channel consent or contact details before saving.');
  if(!preview.eligible.length)throw Error('Choose at least one eligible adult contact.');
- const audience=JSON.stringify({filters,excludedIds:d.excludedIds,eligibleCount:preview.eligible.length,reviewedAt:Date.now()});
+ const audience=JSON.stringify({filters,excludedIds:d.excludedIds,eligibleCount:preview.eligible.length,subject:d.channel==='email'?(d.subject??d.name):undefined,reviewedAt:Date.now()});
  await db.batch([db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,d.kind,d.name,filters.segment,d.channel,d.message,d.delay,Date.now(),audience),log('Saved consent-checked '+d.kind+' draft: '+d.name)]);return;
     }
     if (action === 'session') {
         const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: z.string().max(100).optional().default(''), horses: z.array(id).max(1,'Choose one horse, or leave it unassigned.'), requestKey: id }).parse(raw);
         const existing = await db.prepare('SELECT id FROM sessions WHERE tenant=? AND request_key=?').bind(tenant, b.requestKey).first();
-        if (existing)
+        if (existing||await db.prepare('SELECT token FROM schedule_undo WHERE tenant=? AND request_key=?').bind(tenant,'single:'+b.requestKey).first())
             return;
         const program = await resource(db, tenant, b.program, 'lesson');
         if(program.details.archived)throw Error('This offering was deleted. Choose an active offering.');
@@ -165,9 +166,9 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const pairs = [['trainer', b.trainer], ...(b.arena?[['arena', b.arena]]:[]), ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
         for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinResourceAvailability(kind,b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
-        const sessionId = crypto.randomUUID();
-        await db.batch([db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
-        return;
+        const sessionId = crypto.randomUUID(),undo=scheduleUndoWrite(db,tenant,[sessionId],'single:'+b.requestKey);
+        await db.batch([undo.write,db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
+        return undo.receipt;
     }
     if (action === 'enroll') {
         const b = z.object({ session: id, rider: id }).parse(raw);

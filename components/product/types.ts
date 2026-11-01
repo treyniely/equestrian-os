@@ -73,4 +73,4 @@ export type State = {
         created: number;
     }[];
 };
-export type Save = (data: Record<string, unknown>) => Promise<boolean>;
+export type Save = (data: Record<string, unknown>, onSaved?:(state:State)=>void) => Promise<boolean>;

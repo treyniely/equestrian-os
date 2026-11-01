@@ -1,3 +1,4 @@
+import {scheduleUndoWrite} from './schedule-undo.ts';
 import {z} from 'zod';
 import {isCalendarDate} from '../domain/availability.ts';
 import {previewMonthlyPlan,selectedPlanSlots} from '../domain/monthly-plan.ts';
@@ -24,16 +25,18 @@ export async function saveMonthlyPlan(db:D1Database,tenant:string,raw:Record<str
  const preview=await monthlyPreview(db,tenant,plan);if(expectedSlots&&JSON.stringify(preview.slots.map(s=>({key:s.key,start:s.start,end:s.end,capacity:s.capacity})))!==JSON.stringify(expectedSlots))throw Error('Availability changed. Go Back and review the month again before publishing.');const slots=selectedPlanSlots(preview.slots,excluded);if(!slots.length)throw Error('Choose at least one session to schedule.');
  if(excluded.some(key=>!preview.slots.some(s=>s.key===key)))throw Error('The plan changed. Preview it again.');
  const conflict=slots.find(s=>s.issues.length);if(conflict)throw Error(conflict.date+' · '+conflict.name+': '+conflict.issues[0]);
+ const published:string[]=[];let draftId:string|null=null;
  const writes:D1PreparedStatement[]=[db.prepare('INSERT INTO schedule_batches(tenant,request_key,fingerprint,created) VALUES(?,?,?,?)').bind(tenant,requestKey,hash,Date.now())];
- for(const s of slots){const session=crypto.randomUUID();writes.push(db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(session,tenant,s.program,s.start,s.end,s.capacity,'scheduled',requestKey+':'+s.key),...s.pairs.map(([kind,resource])=>db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),tenant,session,resource,kind)));}
+ for(const s of slots){const session=crypto.randomUUID();published.push(session);writes.push(db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(session,tenant,s.program,s.start,s.end,s.capacity,'scheduled',requestKey+':'+s.key),...s.pairs.map(([kind,resource])=>db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),tenant,session,resource,kind)));}
  if(writes.length>800)throw Error('This plan reserves too many resources at once. Save a smaller set of sessions.');
- if(announcement){
+ if(announcement){draftId=crypto.randomUUID();
  const customers=(await db.prepare('SELECT id,email,email_consent,adult_confirmed FROM customers WHERE tenant=?').bind(tenant).all<{id:string;email:string;email_consent:number;adult_confirmed:number}>()).results;
  const excludedIds=customers.filter(c=>!c.adult_confirmed||!c.email_consent||!c.email).map(c=>c.id),eligibleCount=customers.length-excludedIds.length;
  const link=origin?new URL('/portal?academy='+encodeURIComponent(tenant),origin).href:'';
  const audience=JSON.stringify({filters:{segment:'All customers',query:'',level:'',riderGroup:'',customerGroup:'',optin:''},excludedIds,eligibleCount,reviewedAt:Date.now(),source:'monthly-launch',month:plan.month});
- writes.push(db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,'message',announcement.subject,'All customers','email',announcement.message+(link?'\n\nBook now: '+link:''),0,Date.now(),audience));
+ writes.push(db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(draftId,tenant,'message',announcement.subject,'All customers','email',announcement.message+(link?'\n\nBook now: '+link:''),0,Date.now(),audience));
  }
  writes.push(auditEntry(db,tenant,'Scheduled monthly plan: '+preview.trainer+' · '+plan.month+' · '+slots.length+' sessions'));
- try{await db.batch(writes)}catch(error){const retry=await prior();if(retry?.fingerprint===hash)return;throw error;}
+ const undo=scheduleUndoWrite(db,tenant,published,'batch:'+requestKey,draftId);writes.push(undo.write);
+ try{await db.batch(writes);return undo.receipt}catch(error){const retry=await prior();if(retry?.fingerprint===hash)return;throw error;}
 }

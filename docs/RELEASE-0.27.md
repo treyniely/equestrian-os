@@ -1,0 +1,11 @@
+# Release 0.27 — Shared lesson and rider-level colors
+
+Lesson-type labels now use one shared palette across Lessons & Services, family booking, the published calendar and the weekly planning preview. Private is blue, group violet, horsemanship teal, experiences green, parties rose, camps amber, events indigo and custom offerings slate. Calendar entries use those same categories, including recognized legacy offering types.
+
+Rider-level labels use green for Beginner, amber for Intermediate and violet for Advanced. Named Red/Yellow/Blue/etc. labels use matching readable tints; combined Red/Yellow is orange. Other academy-defined names get deterministic colors. Colors describe categories only and never determine level rank, suitability or booking access. All labels retain their text and add a small decorative dot. Applied to admin rider cards, customer table/Manage, horse/trainer suitability chips and checkboxes, academy level tags, family rider cards and Familiar faces.
+
+A small domain palette and shared CategoryLabel component replace duplicated calendar category colors. Semantic status labels keep their own behavior. No dependency, permission, schema, billing or configuration change. Rollback is the preceding saved version, with no data changes.
+
+Validation: mandatory release checks passed TypeScript, all 200 tests and the production build; git diff --check passed. Packaging rebuilds after a final CSS-only dot-inheritance adjustment. The palette regression test verifies at least 4.5:1 text/background contrast for every token; that is not a whole-site accessibility certification. Source review covers matching chip padding, long-name wrapping, dot sizing, calendar text inheritance, mobile content widths, checkbox labels and selected/disabled states. The prior managed-preview connection refusal has no recovery evidence. Screenshots at 390/768/1440, keyboard interaction and 200% zoom remain unverified; source review is not a visual QA pass.
+
+Baseline: Sites 18c668391bc10f8499fe6bd75743b47c7ee17e6f; GitHub 08238142dffdd43bcd2010abb56e2e357f66a85b; saved version appgprj_6ae34a2858d8819195096b0a770fadce~appgver_14ed7b5fff9c8191811fb88e42c5ab14. Preserve owner-private access. Exact release identifiers remain in Sites history and verified GitHub main.

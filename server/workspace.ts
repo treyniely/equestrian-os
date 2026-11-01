@@ -9,7 +9,7 @@ import {saveFamilyContacts} from './family-contacts.ts';
 import {riderIntakeSchema} from '../domain/rider-intake.ts';
 import {preferredTrainers} from '../domain/preferences.ts';
 import {audiencePreview} from '../domain/audiences.ts';
-import {normalizeBrandColor} from '../domain/branding.ts';
+import {normalizeBrandColor,accessibleBrandColor} from '../domain/branding.ts';
 import {withinAvailability,withinResourceAvailability,isTimeZone,isCalendarDate} from '../domain/availability.ts';
 import {photoIdPattern} from '../domain/photos.ts';
 import { templates } from '../domain/programs.ts';
@@ -70,7 +70,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
                     throw Error('Customer account not found.');
             }
         }
-        if(kind==='academy'&&raw.brandColor!==undefined)details.brandColor=z.string().refine(v=>normalizeBrandColor(v)!==null,'Enter a valid hex color.').transform(v=>normalizeBrandColor(v)!).parse(raw.brandColor);
+        if(kind==='academy'&&raw.brandColor!==undefined)details.brandColor=z.string().refine(v=>normalizeBrandColor(v)!==null,'Enter a valid hex color.').transform(v=>accessibleBrandColor(v)).parse(raw.brandColor);
         if(kind==='academy')details.cancellationHours=z.coerce.number().int().min(0).max(720).optional().default(previous?.details.cancellationHours??24).parse(raw.cancellationHours);
         if(['trainer','horse','intern','academy'].includes(kind)){
           details.description=z.string().max(3000).optional().default('').parse(raw.description);
@@ -144,7 +144,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
  await db.batch([db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,d.kind,d.name,filters.segment,d.channel,d.message,d.delay,Date.now(),audience),log('Saved consent-checked '+d.kind+' draft: '+d.name)]);return;
     }
     if (action === 'session') {
-        const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: id, horses: z.array(id).max(100), requestKey: id }).parse(raw);
+        const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: z.string().max(100).optional().default(''), horses: z.array(id).max(100), requestKey: id }).parse(raw);
         const existing = await db.prepare('SELECT id FROM sessions WHERE tenant=? AND request_key=?').bind(tenant, b.requestKey).first();
         if (existing)
             return;
@@ -153,7 +153,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const details = program.details;
         const duration = details.duration ?? 45, capacity = details.capacity ?? 1;
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
-        const pairs = [['trainer', b.trainer], ['arena', b.arena], ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
+        const pairs = [['trainer', b.trainer], ...(b.arena?[['arena', b.arena]]:[]), ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
         for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinResourceAvailability(kind,b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
         const sessionId = crypto.randomUUID();

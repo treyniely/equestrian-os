@@ -5,6 +5,14 @@ function luminance(hex:string){const [r,g,b]=rgb(hex).map(c=>{const v=c/255;retu
 export function contrastRatio(a:string,b:string){const x=luminance(a),y=luminance(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
 function mix(a:string,b:string,amount:number){const target=rgb(b);return '#'+rgb(a).map((c,i)=>Math.round(c*(1-amount)+target[i]*amount).toString(16).padStart(2,'0')).join('').toUpperCase()}
 function foreground(background:string){return contrastRatio(background,'#FFFFFF')>=contrastRatio(background,'#000000')?'#FFFFFF':'#000000'}
-/** Preserve the chosen button color; derive readable text and accents rather than accepting arbitrary CSS. */
-export function brandTheme(value?:unknown){const primary=normalizeBrandColor(value)??defaultBrandColor,hover=mix(primary,'#000000',.12),tint=mix(primary,'#FFFFFF',.91);let accent=primary;for(let i=0;Math.min(contrastRatio(accent,'#FFFFFF'),contrastRatio(accent,'#F8F8F4'),contrastRatio(accent,tint))<4.5&&i<20;i++)accent=mix(accent,'#000000',.12);return {primary,onPrimary:foreground(primary),hover,onHover:foreground(hover),accent,tint}}
+/** Closest shade along the original color-to-black path meeting our light-surface contrast policy. */
+export function accessibleBrandColor(value:unknown){
+ const original=normalizeBrandColor(value)??defaultBrandColor;
+ const works=(color:string)=>Math.min(...['#FFFFFF','#F8F8F4',mix(color,'#FFFFFF',.91)].map(surface=>contrastRatio(color,surface)))>=3&&contrastRatio(color,foreground(color))>=4.5;
+ if(works(original))return original;
+ let low=0,high=1;for(let i=0;i<24;i++){const mid=(low+high)/2;if(works(mix(original,'#000000',mid)))high=mid;else low=mid}
+ return mix(original,'#000000',high);
+}
+/** One constrained theme powers previews and the saved customer portal. */
+export function brandTheme(value?:unknown){const primary=accessibleBrandColor(value),hover=mix(primary,'#000000',.12),tint=mix(primary,'#FFFFFF',.91);let accent=primary;for(let i=0;Math.min(contrastRatio(accent,'#FFFFFF'),contrastRatio(accent,'#F8F8F4'),contrastRatio(accent,tint))<4.5&&i<20;i++)accent=mix(accent,'#000000',.12);return {primary,onPrimary:foreground(primary),hover,onHover:foreground(hover),accent,tint}}
 export function brandVariables(value?:unknown){const t=brandTheme(value);return {'--portal-brand':t.primary,'--portal-on-brand':t.onPrimary,'--portal-brand-hover':t.hover,'--portal-on-brand-hover':t.onHover,'--portal-accent':t.accent,'--portal-brand-tint':t.tint}}

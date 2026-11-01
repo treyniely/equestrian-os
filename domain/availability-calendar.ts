@@ -3,9 +3,9 @@ export function calendarTime(time:number,zone:string){return new Intl.DateTimeFo
 export function draftSlots(state:PlannerState,plan:MonthPlan){return plan.blocks.length?previewMonthlyPlan(state,plan).slots:[]}
 function occupiedState(state:PlannerState,slots:PlanSlot[]):PlannerState{return {...state,sessions:[...state.sessions,...slots.map(s=>({id:'draft:'+s.key,start:s.start,end:s.end,status:'scheduled'}))],reservations:[...state.reservations,...slots.flatMap(s=>s.pairs.map(([kind,resource])=>({session:'draft:'+s.key,kind,resource})))]}}
 export function calendarOpenWindows(state:PlannerState,plan:MonthPlan,trainer:string,arena:string,date:string,slots=draftSlots(state,plan)){
- const teacher=state.resources.find(r=>r.id===trainer&&r.kind==='trainer'),space=state.resources.find(r=>r.id===arena&&r.kind==='arena');if(!teacher||!space)return [];
+ const teacher=state.resources.find(r=>r.id===trainer&&r.kind==='trainer'),space=state.resources.find(r=>r.id===arena&&r.kind==='arena');if(!teacher||arena&&!space)return [];
  const business=state.resources.find(r=>r.kind==='academy')?.details.availability,zone=business?.timezone??'UTC',occupied=occupiedState(state,slots);
- return availableTeachingWindows({date,from:'00:00',until:'23:59',zone,business,resources:[teacher,space].map(r=>({kind:r.kind,availability:r.details.availability,work:resourceWork(occupied,r.kind,r.id)}))});
+ return availableTeachingWindows({date,from:'00:00',until:'23:59',zone,business,resources:[teacher,...(space?[space]:[])].map(r=>({kind:r.kind,availability:r.details.availability,work:resourceWork(occupied,r.kind,r.id)}))});
 }
 export type Placement={date:string;time:string;program:string;trainer:string;arena:string;interns?:string[]};
 export function checkCalendarPlacement(state:PlannerState,plan:MonthPlan,value:Placement,slots=draftSlots(state,plan)){

@@ -1,3 +1,4 @@
+import {offeringColorMap,nextOfferingTone,isOfferingTone} from '../domain/offering-colors.ts';
 import {readBenefits} from './plans.ts';
 import {academyContactSchema} from '../domain/academy-contact.ts';
 import {availabilitySchema} from '../domain/availability-schema.ts';
@@ -49,8 +50,15 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const name = nameSchema.parse(raw.name);
         const resourceId=optionalId.parse(raw.id);
         const previous=resourceId?await resource(db,tenant,resourceId,kind):null;
+        const colorWrites:D1PreparedStatement[]=[];
         let details: Row = {...(previous?.details??{open:8,close:18})};
         if (kind === 'lesson') {
+            const offeringRows=(await db.prepare("SELECT id,kind,details FROM resources WHERE tenant=? AND kind='lesson'").bind(tenant).all<{id:string;kind:string;details:string}>()).results.map(r=>({...r,details:JSON.parse(r.details)})),colors=offeringColorMap(offeringRows);
+            if(raw.calendarColor!==undefined&&raw.calendarColor!==''&&!isOfferingTone(raw.calendarColor))throw Error('Choose a valid calendar color.');
+            details.calendarColor=raw.calendarColor===undefined&&resourceId?colors[resourceId]:raw.calendarColor||nextOfferingTone(raw.template??'custom',Object.entries(colors).filter(([id])=>id!==resourceId).map(([,tone])=>tone));
+            // Freeze legacy defaults with the edit/create so adding another offering cannot recolor them.
+            for(const row of offeringRows)if(row.id!==resourceId&&!isOfferingTone(row.details.calendarColor))colorWrites.push(db.prepare("UPDATE resources SET details=json_set(details,'$.calendarColor',?) WHERE tenant=? AND id=? AND json_extract(details,'$.calendarColor') IS NULL").bind(colors[row.id],tenant,row.id));
+
             const t = templates.find(t => t.id === raw.template);
             if (!t)
                 throw Error('Choose a starting template.');
@@ -93,7 +101,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         const recordId=resourceId||crypto.randomUUID();
         const write=resourceId?db.prepare('UPDATE resources SET name=?,details=? WHERE tenant=? AND id=?').bind(name,JSON.stringify(details),tenant,recordId):db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(recordId,tenant,kind,name,JSON.stringify(details));
-        await db.batch([write,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
+        await db.batch([...colorWrites,write,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
         return;
     }
     if(action==='customerStripe'){

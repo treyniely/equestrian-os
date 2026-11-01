@@ -10,6 +10,7 @@ export type Resource = {
         capacity?: number;
         price?: number;
         template?: string;
+        calendarColor?:import('../../domain/offering-colors').OfferingTone;
         mounted?: boolean;
         access?: string;
         group?: string;

@@ -6,12 +6,12 @@ import {monthlyPreview,saveMonthlyPlan} from '../../../server/monthly-plan';
 import {barnAction} from '../../../server/barn';
 import {cookies} from 'next/headers';
 import {accessFor,teamAction} from '../../../server/team';
-import {can,requiredFeature,visibleState} from '../../../domain/permissions';
+import {can,requiredFeature,visibleState,guardTrainerPreferences} from '../../../domain/permissions';
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '../../chatgpt-auth';
 import { applyAction, readWorkspace } from '../../../server/workspace';
 import { ZodError } from 'zod';
-const json = (v: unknown, status = 200) => Response.json(v, { status });
+const json = (v: unknown, status = 200) => Response.json(v, { status,headers:{'Cache-Control':'private, no-store'} });
 async function context() { const user = await getChatGPTUser(); if (!user)
     throw new Error('AUTH'); if (!env.DB)
     throw new Error('Database unavailable.'); return {db:env.DB,user,...await accessFor(env.DB,user,(await cookies()).get('eo-academy')?.value)}; }
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
             return json({ error: 'Invalid request origin.' }, 403);
         const {db,tenant,grants,role,user}=await context();
         const body = await req.json() as any;if(['reviewSettings','reviewModerate'].includes(body.action))return json({error:'Trainer reviews are no longer available.'},410);if(!can(grants,requiredFeature(body),true))return json({error:'You do not have permission to manage this feature.'},403);
+ try{guardTrainerPreferences(body,grants)}catch{return json({error:'Trainer preference management permission is required.'},403)}
  if(body.action==='draft'&&!can(grants,'customers'))return json({error:'Customer viewing permission is required to build an audience.'},403);
  if(body.action==='draft'&&(body.filters?.level||body.filters?.riderGroup)&&!can(grants,'riders'))return json({error:'Rider viewing permission is required for rider filters.'},403);
  if(body.action==='draft'&&['Needs attention','Active members','Active','Inactive'].includes(body.filters?.segment??body.segment)&&!can(grants,'billing'))return json({error:'Billing viewing permission is required for this segment.'},403);

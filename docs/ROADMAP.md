@@ -49,3 +49,5 @@ Release 0.24: Month/Week/Day calendar with filters and retained legacy bookings;
 Release 0.26: catalog-first rider enrollment, academy Payments setup and Stripe Connect recurring rider-subscription integration with immutable credit periods and EO subscription management. Integration is disabled pending secure runtime configuration, Stripe sandbox verification and live billing approval. Paid one-off Checkout/refund/dispute handling are subsequent work. See STRIPE-BILLING.md and RELEASE-0.26.md.
 
 Release 0.29: ephemeral five-second live-schedule Undo; adult-first customer creation with linked riders; review-before-save messaging; staff-only horse care records/documents/manual due dates. No messaging delivery or clinical automation. See RELEASE-0.29.md and HORSE-HEALTH-DESIGN.md.
+
+- 0.30: upload-first horse records, scoped keyword/synonym search and provider-backed extraction/query interpretation (runtime key pending); independently flaggable staff trainer-preference View/Manage access, default off for trainers and interns.

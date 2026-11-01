@@ -144,7 +144,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
  await db.batch([db.prepare('INSERT INTO drafts(id,tenant,kind,name,segment,channel,message,delay,created,audience) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,d.kind,d.name,filters.segment,d.channel,d.message,d.delay,Date.now(),audience),log('Saved consent-checked '+d.kind+' draft: '+d.name)]);return;
     }
     if (action === 'session') {
-        const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: z.string().max(100).optional().default(''), horses: z.array(id).max(100), requestKey: id }).parse(raw);
+        const b = z.object({ program: id, start: z.number().int().positive(), trainer: id, arena: z.string().max(100).optional().default(''), horses: z.array(id).max(1,'Choose one horse, or leave it unassigned.'), requestKey: id }).parse(raw);
         const existing = await db.prepare('SELECT id FROM sessions WHERE tenant=? AND request_key=?').bind(tenant, b.requestKey).first();
         if (existing)
             return;

@@ -16,17 +16,17 @@ import Dialog from './dialog';
 import {withinBookingAvailability,withinResourceAvailability} from '../../domain/availability';
 import {preferredTrainers} from '../../domain/preferences';
 import {resourceWork,horseAvailability} from '../../domain/horse-planning';
-export default function Sessions({ state, save, busy, startCreate=false }: {
+export default function Sessions({ state, save, busy, startCreate=false,initialSessionId='' }: {
     state: State;
     save: Save;
     busy: boolean;
- startCreate?:boolean;
+ startCreate?:boolean;initialSessionId?:string;
 }) {
     const zone=state.academyInfo?.timezone??state.resources.find(r=>r.kind==='academy')?.details.availability?.timezone??'UTC';
     const clock=(time:number)=>new Intl.DateTimeFormat('en',{timeZone:zone,hour:'numeric',minute:'2-digit'}).format(time);
     const [calendarView,setCalendarView]=useState<CalendarView>('month'),[focusRevision,setFocusRevision]=useState(0),[legacyDetail,setLegacyDetail]=useState<CalendarEvent|null>(null);
     const [monthly,setMonthly]=useState<'trainer'|'academy'|null>(null);
-    const [open, setOpen] = useState(startCreate), [programId, setProgram] = useState(''), [detail, setDetail] = useState<Session | null>(null), [date, setDate] = useState(() => localDate(Date.now(),zone));
+    const [open, setOpen] = useState(startCreate), [programId, setProgram] = useState(''), [detail, setDetail] = useState<Session | null>(()=>state.sessions.find(s=>s.id===initialSessionId)??null), [date, setDate] = useState(() => localDate(state.sessions.find(s=>s.id===initialSessionId)?.start??Date.now(),zone));
     const requestKey = useRef(crypto.randomUUID());
     const programs = state.resources.filter(r => r.kind === 'lesson'&&!r.details.archived), program = programs.find(p => p.id === programId);
     const resources = (kind: string) => state.resources.filter(r => r.kind === kind), name = (id: string) => state.resources.find(r => r.id === id)?.name ?? state.customers.find(c => 'customer:' + c.id === id)?.name ?? 'Unknown';

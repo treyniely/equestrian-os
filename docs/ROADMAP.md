@@ -51,3 +51,4 @@ Release 0.26: catalog-first rider enrollment, academy Payments setup and Stripe 
 Release 0.29: ephemeral five-second live-schedule Undo; adult-first customer creation with linked riders; review-before-save messaging; staff-only horse care records/documents/manual due dates. No messaging delivery or clinical automation. See RELEASE-0.29.md and HORSE-HEALTH-DESIGN.md.
 
 - 0.30: upload-first horse records, scoped keyword/synonym search and provider-backed extraction/query interpretation (runtime key pending); independently flaggable staff trainer-preference View/Manage access, default off for trainers and interns.
+- 0.31: audited essential/optional academy setup, durable one-time completion/review/celebration, and academy-local operational overview. Live payments, delivery and pilot readiness remain separate gates.

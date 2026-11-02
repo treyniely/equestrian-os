@@ -49,3 +49,5 @@ export const horseHealthRecords=sqliteTable('horse_health_records',{id:text('id'
 export const horseHealthFiles=sqliteTable('horse_health_files',{id:text('id').primaryKey(),tenant:text('tenant').notNull(),horse:text('horse').notNull(),name:text('name').notNull(),mime:text('mime').notNull(),size:integer('size').notNull(),created:integer('created').notNull()},t=>[index('horse_health_file_owner').on(t.tenant,t.horse)]);
 
 export const horseRecordAI=sqliteTable('horse_record_ai',{record:text('record').primaryKey(),tenant:text('tenant').notNull(),horse:text('horse').notNull(),state:text('state').notNull(),origin:text('origin').notNull(),token:text('token').notNull(),data:text('data').notNull(),searchText:text('search_text').notNull(),error:text('error').notNull(),updated:integer('updated').notNull()},t=>[index('horse_ai_scope').on(t.tenant,t.horse)]);
+
+export const academyOnboarding=sqliteTable('academy_onboarding',{tenant:text('tenant').primaryKey(),completedAt:integer('completed_at').notNull()});

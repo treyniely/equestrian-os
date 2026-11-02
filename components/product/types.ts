@@ -46,6 +46,7 @@ export type Draft = {
     audience?:string;
 };
 export type State = {
+    onboarding?:import('../../domain/onboarding').SetupSummary;
     onlineMemberships?:string[];booking_changes?:{id:string;rider_name:string;customer_name:string;kind:string;reason:string;created:number;read_at:number|null;previous_start:number;next_start:number|null}[];
     rider_horses?:{session:string;rider:string;horse:string;reason:string}[];
     academyInfo?:{name:string;timezone:string;availability?:import('../../domain/availability').Availability};

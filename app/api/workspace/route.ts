@@ -1,3 +1,5 @@
+import {readOnboarding,finishOnboarding} from '../../../server/onboarding';
+import {billingConfigured} from '../../../server/billing/stripe';
 import {undoSchedule} from '../../../server/schedule-undo';
 import {readBookingChanges,acknowledgeBookingChange} from '../../../server/booking-changes';
 import {planAction} from '../../../server/plans';
@@ -15,7 +17,7 @@ const json = (v: unknown, status = 200) => Response.json(v, { status,headers:{'C
 async function context() { const user = await getChatGPTUser(); if (!user)
     throw new Error('AUTH'); if (!env.DB)
     throw new Error('Database unavailable.'); return {db:env.DB,user,...await accessFor(env.DB,user,(await cookies()).get('eo-academy')?.value)}; }
-async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];const academy=state.resources.find((r:any)=>r.kind==='academy');const barn_tasks=state.barn_tasks.map((t:any)=>({...t,sessionCanceled:!!t.session&&state.sessions.some((s:any)=>s.id===t.session&&s.status==='canceled')}));return {onlineMemberships:can(grants,'billing')?(await db.prepare('SELECT id FROM rider_subscriptions WHERE tenant=?').bind(tenant).all<{id:string}>()).results.map(s=>s.id):[],booking_changes:can(grants,'schedule')&&can(grants,'customers')?await readBookingChanges(db,tenant):[],...visibleState({...state,team,barn_tasks},grants),academyInfo:{name:academy?.name??'My riding academy',timezone:academy?.details.availability?.timezone??'UTC',availability:can(grants,'schedule')||can(grants,'setup')?academy?.details.availability:undefined},permissions:grants,currentRole:role};}
+async function responseState(db:D1Database,tenant:string,grants:import('../../../domain/permissions').Grants,role:string){const state=await readWorkspace(db,tenant);const team=can(grants,'team')?(await db.prepare('SELECT id,name,email,role,permissions,status,expires FROM team_access WHERE tenant=?').bind(tenant).all()).results:[];const academy=state.resources.find((r:any)=>r.kind==='academy');const barn_tasks=state.barn_tasks.map((t:any)=>({...t,sessionCanceled:!!t.session&&state.sessions.some((s:any)=>s.id===t.session&&s.status==='canceled')}));return {onboarding:can(grants,'setup')?await readOnboarding(db,tenant,state,billingConfigured(env)):undefined,onlineMemberships:can(grants,'billing')?(await db.prepare('SELECT id FROM rider_subscriptions WHERE tenant=?').bind(tenant).all<{id:string}>()).results.map(s=>s.id):[],booking_changes:can(grants,'schedule')&&can(grants,'customers')?await readBookingChanges(db,tenant):[],...visibleState({...state,team,barn_tasks},grants),academyInfo:{name:academy?.name??'My riding academy',timezone:academy?.details.availability?.timezone??'UTC',availability:can(grants,'schedule')||can(grants,'setup')?academy?.details.availability:undefined},permissions:grants,currentRole:role};}
 export async function GET() { try {
     const {db,tenant,grants,role,user}=await context();
     return json(await responseState(db,tenant,grants,role));
@@ -37,6 +39,7 @@ export async function POST(req: Request) {
  if(body.action==='customer'&&!body.id){body.emailConsent=false;body.smsConsent=false;}
  if(body.action==='demo'&&role!=='owner')return json({error:'Only the owner can load sample data.'},403);
  if(body.action==='customer'&&!can(grants,'billing',true)){const old=body.id?await db.prepare('SELECT billing,balance FROM customers WHERE tenant=? AND id=?').bind(tenant,body.id).first<any>():null;body.billing=old?.billing??'none';body.balance=old?.balance??0;}
+ if(body.action==='finishOnboarding'){await finishOnboarding(db,tenant,grants,body.reviewed,billingConfigured(env));return json(await responseState(db,tenant,grants,role));}
  if(['teamInvite','teamUpdate'].includes(body.action)){const result=await teamAction(db,tenant,body,user.email,grants);return json({...await responseState(db,tenant,grants,role),...(result.inviteToken?{inviteUrl:new URL(req.url).origin+'/join#'+result.inviteToken}:{})});}
 
         if(body.action==='horseRecommendations')return json({horsePlan:await recommendSessionHorses(db,tenant,body.session)});

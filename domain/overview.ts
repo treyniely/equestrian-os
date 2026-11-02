@@ -1,0 +1,2 @@
+import {localDate} from './barn.ts';
+export function overviewSessions<T extends {id:string;start:number;end:number;status:string}>(sessions:T[],zone:string,now=Date.now()){const today=localDate(now,zone);const active=sessions.filter(s=>s.status==='scheduled');return {today:active.filter(s=>localDate(s.start,zone)===today).sort((a,b)=>a.start-b.start),next:active.filter(s=>s.end>now).sort((a,b)=>a.start-b.start).slice(0,5),upcoming:active.filter(s=>s.start>=now).length};}

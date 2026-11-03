@@ -1,3 +1,4 @@
+import {eventWindow} from '../domain/event-timing.ts';
 import {scheduleUndoWrite} from './schedule-undo.ts';
 import {offeringColorMap,nextOfferingTone,isOfferingTone} from '../domain/offering-colors.ts';
 import {readBenefits} from './plans.ts';
@@ -52,6 +53,8 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const resourceId=optionalId.parse(raw.id);
         const previous=resourceId?await resource(db,tenant,resourceId,kind):null;
         const colorWrites:D1PreparedStatement[]=[];
+        let event: ReturnType<typeof eventWindow> | undefined;
+        let eventRequestKey: string | undefined;
         let details: Row = {...(previous?.details??{open:8,close:18})};
         if (kind === 'lesson') {
             const offeringRows=(await db.prepare("SELECT id,kind,details FROM resources WHERE tenant=? AND kind='lesson'").bind(tenant).all<{id:string;kind:string;details:string}>()).results.map(r=>({...r,details:JSON.parse(r.details)})),colors=offeringColorMap(offeringRows);
@@ -63,7 +66,18 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
             const t = templates.find(t => t.id === raw.template);
             if (!t)
                 throw Error('Choose a starting template.');
-            details = { ...details, description:raw.description===undefined?(details.description??''):z.string().trim().max(800).parse(raw.description), template: t.id, duration: z.coerce.number().int().min(15).max(720).parse(raw.duration), capacity: t.id === 'private' ? 1 : z.coerce.number().int().min(1).max(100).parse(raw.capacity), mounted: z.boolean().parse(raw.mounted), price: z.coerce.number().int().min(0).max(10000000).parse(raw.price), access: z.enum(['paid', 'free', 'membership']).parse(raw.access), level: optionalId.parse(raw.level), discipline: optionalId.parse(raw.discipline) };
+            if(t.id==='event'&&raw.eventTiming!==undefined){
+                if(resourceId)throw Error('Use the calendar to manage an existing event session.');
+                eventRequestKey='event:'+z.string().uuid().parse(raw.eventRequestKey);
+                if(await db.prepare('SELECT id FROM sessions WHERE tenant=? AND request_key=?').bind(tenant,eventRequestKey).first())return;
+                const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();
+                const zone=academy?JSON.parse(academy.details).availability?.timezone??'UTC':'UTC';
+                event=eventWindow(raw.eventTiming,zone);
+                details.eventZone=zone;
+                if(event.start<=Date.now())throw Error('Choose an event date and start time in the future.');
+            }
+            details = { ...details, description:raw.description===undefined?(details.description??''):z.string().trim().max(800).parse(raw.description), template: t.id, duration: event?Math.round((event.end-event.start)/60000):z.coerce.number().int().min(previous?.details.eventMode?1:15).max(previous?.details.eventMode?1500:720).parse(raw.duration), capacity: t.id === 'private' ? 1 : z.coerce.number().int().min(1).max(100).parse(raw.capacity), mounted: z.boolean().parse(raw.mounted), price: z.coerce.number().int().min(0).max(10000000).parse(raw.price), access: z.enum(['paid', 'free', 'membership']).parse(raw.access), level: optionalId.parse(raw.level), discipline: optionalId.parse(raw.discipline) };
+            if(event)details.eventMode=event.mode;
             if (details.level)
                 await resource(db, tenant, details.level, 'level');
             if (details.discipline)
@@ -102,7 +116,8 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         }
         const recordId=resourceId||crypto.randomUUID();
         const write=resourceId?db.prepare('UPDATE resources SET name=?,details=? WHERE tenant=? AND id=?').bind(name,JSON.stringify(details),tenant,recordId):db.prepare('INSERT INTO resources(id,tenant,kind,name,details) VALUES(?,?,?,?,?)').bind(recordId,tenant,kind,name,JSON.stringify(details));
-        await db.batch([...colorWrites,write,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
+        const eventWrites=event?[db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,recordId,event.start,event.end,details.capacity,'scheduled',eventRequestKey!)]:[];
+        await db.batch([...colorWrites,write,...eventWrites,...(kind==='academy'?[db.prepare('UPDATE academies SET name=? WHERE id=?').bind(name,tenant)]:[]),log((resourceId?'Updated ':'Added ')+(kind==='lesson'?'program':kind)+': '+name)]);
         return;
     }
     if(action==='customerStripe'){
@@ -160,6 +175,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
             return;
         const program = await resource(db, tenant, b.program, 'lesson');
         if(program.details.archived)throw Error('This offering was deleted. Choose an active offering.');
+        if(program.details.eventMode)throw Error('Create a new event to publish another date.');
         const details = program.details;
         const duration = details.duration ?? 45, capacity = details.capacity ?? 1;
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
@@ -230,7 +246,9 @@ return {rider,program};
 }
 
 export async function validateSessionAvailability(db:D1Database,tenant:string,session:Row){
- const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(session.start,session.end,business))throw Error('The academy is closed at this time.');
+ const program=await resource(db,tenant,session.program,'lesson');
+ const publishedEvent=program.details.template==='event'&&!!program.details.eventMode;
+ const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(!publishedEvent&&business&&!withinAvailability(session.start,session.end,business))throw Error('The academy is closed at this time.');
         const assigned=(await db.prepare('SELECT resource,kind FROM reservations WHERE tenant=? AND session=?').bind(tenant,session.id).all<Row>()).results;for(const assignment of assigned){const r=await resource(db,tenant,assignment.resource,assignment.kind);if(!withinResourceAvailability(assignment.kind,session.start,session.end,business,r.details.availability))throw Error(r.name+' is no longer available for new registrations at this time.');}
 
 }

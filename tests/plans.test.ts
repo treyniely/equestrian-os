@@ -15,3 +15,35 @@ test('plan mutations require billing management and never trust another tenant o
 test('unrelated family and academy responses never include another family allowance data',async()=>{const x=await setup();await planAction(x.db,'a',x.grant);const other={userId:'other',email:'other@example.invalid'};await portalAction(x.db,'a',other,{action:'join',name:'Other',phone:'',adultConfirmed:true,emailConsent:false,smsConsent:false});assert.deepEqual((await portalState(x.db,'a',other)).benefits,[]);assert.deepEqual(await readBenefits(x.db,'b'),[]);});
 test('a full-session failure rolls back its funding requirement and leaves allowances untouched',async()=>{const x=await setup({scope:'family',paid:true});await planAction(x.db,'a',x.grant);const session=await x.session('Private','2030-11-04');await x.book(session);await assert.rejects(x.book(session,x.sibling),/session_full/);assert.equal((await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')!.used,1);assert.equal((await x.db.prepare('SELECT count(*) as count FROM booking_requirements').first<any>()).count,0);assert.equal((await portalState(x.db,'a',user)).registrations.length,1);});
 test('activation requires payment confirmation and active inclusions; duplicate inclusion rules are rejected',async()=>{const x=await setup();await assert.rejects(planAction(x.db,'a',{...x.grant,paymentConfirmed:false}));await assert.rejects(planAction(x.db,'a',{action:'savePlan',plan:{...x.definition,buckets:[...x.definition.buckets,{label:'Duplicate',quantity:1,programs:[x.id('Private')]}]}}));await applyAction(x.db,'a',{action:'deleteOffering',id:x.id('Private')});await assert.rejects(planAction(x.db,'a',x.grant),/deleted offering/);assert.equal((await readBenefits(x.db,'a',x.customer)).length,0);});
+
+test('an offering cap leaves shared credits available for another offering and releases on cancellation',async()=>{
+ const x=await setup();
+ const bucket=x.definition.buckets[0];
+ await planAction(x.db,'a',{action:'savePlan',plan:{...x.definition,id:x.plan,buckets:[{...bucket,quantity:4,limits:[{program:x.id('Other private'),maximum:2}]},x.definition.buckets[1]]}});
+ await planAction(x.db,'a',x.grant);
+ for(const day of ['04','05'])await x.book(await x.session('Other private','2030-11-'+day));
+ const capped=await x.session('Other private','2030-11-06');
+ await assert.rejects(applyAction(x.db,'a',{action:'enroll',session:capped,rider:x.rider}),/allowance_unavailable/);
+ await x.book(await x.session('Private','2030-11-07'));
+ const credit=(await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')!;
+ assert.equal(credit.used,3);
+ assert.equal(credit.limits?.[0].used,2);
+ const registration=(await portalState(x.db,'a',user)).registrations[0];
+ await portalAction(x.db,'a',user,{action:'reschedule',reason:'Family schedule change',id:registration.id,rider:x.rider,session:capped});
+ assert.equal((await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')!.limits?.[0].used,2);
+});
+
+test('an all-day event publishes once and allows family RSVP outside ordinary lesson hours',async()=>{
+ const x=await setup();
+ const event={action:'program',name:'Fall Barn Day',template:'event',capacity:5,mounted:false,access:'free',price:0,eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-11-09'}};
+ await applyAction(x.db,'a',event);
+ await applyAction(x.db,'a',event);
+ const state=await readWorkspace(x.db,'a');
+ const program=state.resources.find((r:any)=>r.name===event.name);
+ const sessions=state.sessions.filter((s:any)=>s.program===program.id);
+ assert.equal(sessions.length,1);
+ assert.equal(program.details.eventMode,'all-day');
+ assert.equal(sessions[0].end-sessions[0].start,86400000);
+ await x.book(sessions[0].id);
+ assert.equal((await portalState(x.db,'a',user)).registrations[0].session,sessions[0].id);
+});

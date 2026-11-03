@@ -5,3 +5,5 @@ Lessons & Offerings is the workspace navigation label. Allowance buckets can inc
 An event can publish one occurrence directly from the offering editor with an academy-local date, start/end times or an all-day setting. Calendar registrations are the admin roster. The family booking page groups upcoming events and accepts free RSVPs and bookings with eligible plan credits. Separately paid events show their price and direct families to the academy. One-time online checkout, payment holds and paid attendee reconciliation are pending.
 
 Migration 0023 adds nullable maxima and replaces the balance view and credit trigger. Keep this migration in place when rolling back UI code. Reverting the migration would remove cap enforcement. No new dependencies. Responsive layout and browser interaction remain unverified.
+
+The follow-up release adds Add space, Remove space and Restore to Riding spaces. Removed spaces stay in historical reservations and are excluded from new scheduling options. Setup management permission is required. The existing resource details JSON stores the archive flag.

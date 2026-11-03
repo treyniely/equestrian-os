@@ -29,7 +29,7 @@ export default function Sessions({ state, save, busy, startCreate=false,initialS
     const [open, setOpen] = useState(startCreate), [programId, setProgram] = useState(''), [detail, setDetail] = useState<Session | null>(()=>state.sessions.find(s=>s.id===initialSessionId)??null), [date, setDate] = useState(() => localDate(state.sessions.find(s=>s.id===initialSessionId)?.start??Date.now(),zone));
     const requestKey = useRef(crypto.randomUUID());
     const programs = state.resources.filter(r => r.kind === 'lesson'&&!r.details.archived&&!r.details.eventMode), program = programs.find(p => p.id === programId);
-    const resources = (kind: string) => state.resources.filter(r => r.kind === kind), name = (id: string) => state.resources.find(r => r.id === id)?.name ?? state.customers.find(c => 'customer:' + c.id === id)?.name ?? 'Unknown';
+    const resources = (kind: string) => state.resources.filter(r => r.kind === kind && !(kind==='arena'&&r.details.archived)), name = (id: string) => state.resources.find(r => r.id === id)?.name ?? state.customers.find(c => 'customer:' + c.id === id)?.name ?? 'Unknown';
     const [riderId,setRiderId]=useState(''),[planDate,setPlanDate]=useState(date),[planTime,setPlanTime]=useState('09:00'),[trainerId,setTrainerId]=useState(''),[horseId,setHorseId]=useState(''),[planNotice,setPlanNotice]=useState('');
     const rider=resources('rider').find(r=>r.id===riderId),start=taskTime(planDate,planTime,zone),end=start+(program?.details.duration??45)*60000;
     const business=resources('academy')[0]?.details.availability;

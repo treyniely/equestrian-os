@@ -42,6 +42,15 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const contact=academyContactSchema.parse(raw.contactInfo);const academy=await db.prepare("SELECT id FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();if(!academy)throw Error('Add your academy name first.');
         await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.contactInfo',json(?)) WHERE tenant=? AND id=? AND kind='academy'").bind(JSON.stringify(contact),tenant,academy.id),log('Updated academy location, contact and community settings')]);return;
     }
+    if (action === 'removeSpace' || action === 'restoreSpace') {
+        const space = await resource(db, tenant, id.parse(raw.id), 'arena');
+        const removed = action === 'removeSpace';
+        await db.batch([
+            db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?)) WHERE tenant=? AND id=? AND kind='arena'").bind(JSON.stringify(removed), tenant, space.id),
+            log((removed ? 'Removed riding space: ' : 'Restored riding space: ') + space.name),
+        ]);
+        return;
+    }
     if(action==='deleteOffering'||action==='restoreOffering'){
         const offering=await resource(db,tenant,id.parse(raw.id),'lesson'),archived=action==='deleteOffering';
         await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?)) WHERE tenant=? AND id=? AND kind='lesson'").bind(JSON.stringify(archived),tenant,offering.id),log((archived?'Removed offering: ':'Restored offering: ')+offering.name)]);
@@ -181,7 +190,7 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         const start = new Date(b.start), end = new Date(b.start + duration * 60000);
         const pairs = [['trainer', b.trainer], ...(b.arena?[['arena', b.arena]]:[]), ...Array.from(new Set(b.horses)).map(h => ['horse', h])];
         const academy=await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();const business=academy?JSON.parse(academy.details).availability:undefined;if(business&&!withinAvailability(b.start,end.getTime(),business))throw Error('The academy is closed at this time.');
-        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(!withinResourceAvailability(kind,b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
+        for (const [kind, value] of pairs){const r=await resource(db, tenant, value, kind);if(kind==='arena'&&r.details.archived)throw Error('Choose an active riding space.');if(!withinResourceAvailability(kind,b.start,end.getTime(),business,r.details.availability))throw Error(r.name+' is not available at this time.');if(['trainer','horse'].includes(kind)&&program.details.level){const level=await resource(db,tenant,program.details.level,'level');if(!allowsRiderLevel(kind,r.details,level.name))throw Error('This '+kind+' is not suitable for the selected program level.');}}
         const sessionId = crypto.randomUUID(),undo=scheduleUndoWrite(db,tenant,[sessionId],'single:'+b.requestKey);
         await db.batch([undo.write,db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?)').bind(sessionId, tenant, b.program, b.start, end.getTime(), capacity, 'scheduled', b.requestKey), ...pairs.map(([kind, value]) => db.prepare('INSERT INTO reservations VALUES(?,?,?,?,?)').bind(crypto.randomUUID(), tenant, sessionId, value, kind)), log('Scheduled ' + program.name)]);
         return undo.receipt;

@@ -21,14 +21,16 @@ test('an offering cap leaves shared credits available for another offering and r
  const bucket=x.definition.buckets[0];
  await planAction(x.db,'a',{action:'savePlan',plan:{...x.definition,id:x.plan,buckets:[{...bucket,quantity:4,limits:[{program:x.id('Other private'),maximum:2}]},x.definition.buckets[1]]}});
  await planAction(x.db,'a',x.grant);
- for(const day of ['04','05'])await x.book(await x.session('Other private','2030-11-'+day));
+ const firstGroup=await x.session('Other private','2030-11-04');
+ await x.book(firstGroup);
+ await x.book(await x.session('Other private','2030-11-05'));
  const capped=await x.session('Other private','2030-11-06');
  await assert.rejects(applyAction(x.db,'a',{action:'enroll',session:capped,rider:x.rider}),/allowance_unavailable/);
  await x.book(await x.session('Private','2030-11-07'));
  const credit=(await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')!;
  assert.equal(credit.used,3);
  assert.equal(credit.limits?.[0].used,2);
- const registration=(await portalState(x.db,'a',user)).registrations[0];
+ const registration=(await portalState(x.db,'a',user)).registrations.find(r=>r.session===firstGroup)!;
  await portalAction(x.db,'a',user,{action:'reschedule',reason:'Family schedule change',id:registration.id,rider:x.rider,session:capped});
  assert.equal((await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')!.limits?.[0].used,2);
 });

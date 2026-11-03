@@ -216,3 +216,12 @@ button.master-calendar-event{text-align:left;cursor:pointer;font:inherit}button.
 .offering-swatch{width:17px;height:17px;flex:0 0 17px;border-radius:50%;border:1px solid #0002}
 .offering-color-options svg{flex-shrink:0}
 @media(max-width:680px){.offering-color-options{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.deleted-offering-row > div:first-child{min-width:0}
+.deleted-offering-row .deleted-offering-details{display:block;min-height:30px;padding:4px 0;border:0;background:transparent;color:#285840;text-decoration:underline;text-underline-offset:3px;font-size:12px;cursor:pointer}
+.deleted-offering-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-left:auto}
+.deleted-offering-actions button,.dialog-actions .offering-delete-confirm{display:inline-flex;align-items:center;gap:6px}
+.deleted-offering-facts{display:grid;grid-template-columns:minmax(85px,auto) minmax(0,1fr);gap:10px 16px;margin:20px 0}
+.deleted-offering-facts dt{font-weight:600}
+.deleted-offering-facts dd{margin:0;overflow-wrap:anywhere}
+@media(max-width:540px){.removed-offerings>.deleted-offering-row{flex-wrap:wrap}.deleted-offering-actions{flex-basis:100%}}

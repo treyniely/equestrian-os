@@ -49,3 +49,26 @@ test('an all-day event publishes once and allows family RSVP outside ordinary le
  await x.book(sessions[0].id);
  assert.equal((await portalState(x.db,'a',user)).registrations[0].session,sessions[0].id);
 });
+
+test('relaunching a past event keeps the offering and original roster, and publishes one new date',async()=>{
+ const x=await setup();
+ const original={action:'program',name:'Fall Event',template:'event',capacity:8,mounted:false,access:'free',price:0,eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-11-09'}};
+ await applyAction(x.db,'a',original);
+ const state=await readWorkspace(x.db,'a');
+ const offering=state.resources.find((r:any)=>r.name===original.name);
+ const old=state.sessions.find((s:any)=>s.program===offering.id);
+ await x.book(old.id);
+ const relaunch={action:'relaunchEvent',id:offering.id,eventRequestKey:crypto.randomUUID(),eventTiming:{date:'2031-11-09'}};
+ await assert.rejects(applyAction(x.db,'a',relaunch),/upcoming or ongoing/);
+ await x.db.prepare('UPDATE sessions SET start=?, end=? WHERE id=?').bind(Date.now()-172800000,Date.now()-86400000,old.id).run();
+ await applyAction(x.db,'a',relaunch);
+ await applyAction(x.db,'a',relaunch);
+ const after=await readWorkspace(x.db,'a');
+ const occurrences=after.sessions.filter((s:any)=>s.program===offering.id);
+ assert.equal(occurrences.length,2);
+ const next=occurrences.find((s:any)=>s.id!==old.id);
+ assert.equal(next.start,Date.parse('2031-11-09T00:00:00Z'));
+ assert.equal(next.capacity,8);
+ assert.equal(after.enrollments.filter((e:any)=>e.session===old.id).length,1);
+ assert.equal(after.enrollments.filter((e:any)=>e.session===next.id).length,0);
+});

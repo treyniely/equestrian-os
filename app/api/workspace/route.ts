@@ -33,7 +33,7 @@ export async function POST(req: Request) {
         const {db,tenant,grants,role,user}=await context();
         const body = await req.json() as any;if(['reviewSettings','reviewModerate'].includes(body.action))return json({error:'Trainer reviews are no longer available.'},410);if(!can(grants,requiredFeature(body),true))return json({error:'You do not have permission to manage this feature.'},403);
  try{guardTrainerPreferences(body,grants)}catch{return json({error:'Trainer preference management permission is required.'},403)}
- if(body.action==='program'&&body.eventTiming!==undefined&&!can(grants,'schedule',true))return json({error:'Scheduling permission is required to publish events.'},403);
+ if((body.action==='relaunchEvent'||body.action==='program'&&body.eventTiming!==undefined)&&!can(grants,'schedule',true))return json({error:'Scheduling permission is required to publish events.'},403);
  if(body.action==='draft'&&!can(grants,'customers'))return json({error:'Customer viewing permission is required to build an audience.'},403);
  if(body.action==='draft'&&(body.filters?.level||body.filters?.riderGroup)&&!can(grants,'riders'))return json({error:'Rider viewing permission is required for rider filters.'},403);
  if(body.action==='draft'&&['Needs attention','Active members','Active','Inactive'].includes(body.filters?.segment??body.segment)&&!can(grants,'billing'))return json({error:'Billing viewing permission is required for this segment.'},403);
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         if(['savePlan','grantPlan'].includes(body.action)){await planAction(db,tenant,body);return json(await responseState(db,tenant,grants,role));}
         const log = (action: string) => db.prepare('INSERT INTO audit(id,tenant,action,created) VALUES(?,?,?,?)').bind(crypto.randomUUID(), tenant, action, Date.now());
         if(String(body.action).startsWith('barn'))await barnAction(db,tenant,body);
-        else if (['academyContact', 'deleteOffering', 'restoreOffering', 'removeSpace', 'restoreSpace', 'customerStripe', 'customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
+        else if (['academyContact', 'deleteOffering', 'restoreOffering', 'relaunchEvent', 'removeSpace', 'restoreSpace', 'customerStripe', 'customerContacts', 'resource', 'program', 'customer', 'contactPreferences', 'membership', 'draft', 'session', 'enroll', 'party', 'cancelSession', 'removeEnrollment'].includes(body.action)) {
             await applyAction(db, tenant, body);
         }
         else if (body.action === 'cancel') {

@@ -8,6 +8,7 @@ export type Resource = {
         level?: string;
         duration?: number;
         eventMode?: 'all-day' | 'timed';
+        eventZone?: string;
         capacity?: number;
         price?: number;
         template?: string;

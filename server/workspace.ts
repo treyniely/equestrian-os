@@ -51,6 +51,42 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         ]);
         return;
     }
+    if (action === 'relaunchEvent') {
+        const offering = await resource(db, tenant, id.parse(raw.id), 'lesson');
+        if (offering.details.template !== 'event' || offering.details.archived) {
+            throw Error('Choose a past event from your academy.');
+        }
+        const requestKey = 'event:' + z.string().uuid().parse(raw.eventRequestKey);
+        const prior = await db.prepare('SELECT program FROM sessions WHERE tenant=? AND request_key=?').bind(tenant, requestKey).first<{ program: string }>();
+        if (prior?.program === offering.id) return;
+        if (prior) throw Error('This event request was already used.');
+
+        const academy = await db.prepare("SELECT details FROM resources WHERE tenant=? AND kind='academy' LIMIT 1").bind(tenant).first<Row>();
+        const zone = offering.details.eventZone ?? (academy ? JSON.parse(academy.details).availability?.timezone ?? 'UTC' : 'UTC');
+        const mode = offering.details.eventMode ?? 'timed';
+        const timing = eventWindow({ ...raw.eventTiming, mode }, zone);
+        const now = Date.now();
+        if (timing.start <= now) throw Error('Choose an event date and start time in the future.');
+
+        const sessionId = crypto.randomUUID();
+        await db.batch([
+            db.prepare(`INSERT OR IGNORE INTO sessions (id,tenant,program,start,end,capacity,status,request_key)
+                SELECT ?,tenant,id,?,?,json_extract(details,'$.capacity'),'scheduled',?
+                FROM resources WHERE tenant=? AND id=? AND kind='lesson'
+                AND json_extract(details,'$.template')='event' AND coalesce(json_extract(details,'$.archived'),0)=0
+                AND EXISTS (SELECT 1 FROM sessions WHERE tenant=resources.tenant AND program=resources.id)
+                AND NOT EXISTS (SELECT 1 FROM sessions WHERE tenant=resources.tenant AND program=resources.id AND end>?)`)
+                .bind(sessionId,timing.start,timing.end,requestKey,tenant,offering.id,now),
+            db.prepare(`UPDATE resources SET details=json_set(details,'$.eventMode',?,'$.eventZone',?)
+                WHERE tenant=? AND id=? AND EXISTS(SELECT 1 FROM sessions WHERE tenant=? AND id=?)`)
+                .bind(mode,zone,tenant,offering.id,tenant,sessionId),
+            db.prepare(`INSERT INTO audit SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM sessions WHERE tenant=? AND id=?)`)
+                .bind(crypto.randomUUID(),tenant,'Relaunched event: '+offering.name,now,tenant,sessionId),
+        ]);
+        const created = await db.prepare('SELECT program FROM sessions WHERE tenant=? AND request_key=?').bind(tenant,requestKey).first<{ program: string }>();
+        if (created?.program !== offering.id) throw Error('This event already has an upcoming or ongoing date.');
+        return;
+    }
     if(action==='deleteOffering'||action==='restoreOffering'){
         const offering=await resource(db,tenant,id.parse(raw.id),'lesson'),archived=action==='deleteOffering';
         await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?)) WHERE tenant=? AND id=? AND kind='lesson'").bind(JSON.stringify(archived),tenant,offering.id),log((archived?'Removed offering: ':'Restored offering: ')+offering.name)]);

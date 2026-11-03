@@ -9,7 +9,7 @@ export const eventClassesSchema = z.object({
     context.addIssue({ code: 'custom', message: 'Give each class a different name.' });
   }
   if (passPrice !== null && passPrice >= classes.reduce((total, entry) => total + entry.price, 0)) {
-    context.addIssue({ code: 'custom', message: 'Price the All Classes Pass below the total of the individual classes.' });
+    context.addIssue({ code: 'custom', message: 'Price the Unlimited pass below the total of the individual classes.' });
   }
 });
 export type EventClasses = z.infer<typeof eventClassesSchema>;

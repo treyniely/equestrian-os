@@ -5,3 +5,5 @@ Events can use one event price or up to 100 named, individually priced classes. 
 Class entry and pass price fields show a fixed dollar prefix alongside the editable numeric amount. No schema or dependency change.
 
 Currency fields reserve a 32 px leading inset through the shared dialog input rule so the numeric caret and value clear the dollar prefix.
+
+The optional unlimited pass now has a separate section before individual class pricing. Its price appears when enabled, and the unlimited pass label is consistent across the editor and family preview.

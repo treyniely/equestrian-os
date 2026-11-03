@@ -23,7 +23,14 @@ export default function EventPricing({ initial, access, price }: {
       <option value="single">One price for the event</option>
       <option value="classes">Price each class separately</option>
     </select></label>
-    {!classPricing ? <OfferingPaymentOptions initialAccess={access} initialPrice={price} allowFree /> : <fieldset className="plan-allowance-editor">
+    {!classPricing ? <OfferingPaymentOptions initialAccess={access} initialPrice={price} allowFree /> : <>
+      <fieldset className="plan-allowance-editor event-unlimited-pass">
+        <legend>Unlimited pass</legend>
+      <label className="checkbox"><input type="checkbox" checked={hasPass} onChange={event => setHasPass(event.target.checked)} /><strong>Offer an unlimited pass</strong></label>
+      {hasPass && <><label>Unlimited pass price · USD<span className="event-price-input"><span aria-hidden="true">$</span><input required type="number" min="0.01" max="100000" step="0.01" value={pass} onChange={event => setPass(event.target.value)} /></span></label><p>Individual entry total: ${(rows.reduce((sum,row)=>sum+cents(row.price),0)/100).toFixed(2)}</p></>}
+        <p>Give riders access to every class for one price. You can still set individual entry prices below.</p>
+      </fieldset>
+      <fieldset className="plan-allowance-editor">
       <legend>Classes</legend>
       <p>List the classes riders can enter. Set a price for each class.</p>
       <input type="hidden" name="access" value="paid" />
@@ -40,9 +47,7 @@ export default function EventPricing({ initial, access, price }: {
         {rows.length > 1 && <button type="button" className="secondary event-remove-class" onClick={() => setRows(current => current.filter(entry => entry.id !== row.id))}>Remove class</button>}
       </div>)}
       <button type="button" className="secondary" disabled={rows.length >= 100} onClick={() => setRows(current => [...current, {id:crypto.randomUUID(), name:'', price:''}])}>Add class</button>
-      <label className="checkbox"><input type="checkbox" checked={hasPass} onChange={event => setHasPass(event.target.checked)} />Offer an All Classes Pass</label>
-      {hasPass && <><label>Pass price · USD<span className="event-price-input"><span aria-hidden="true">$</span><input required type="number" min="0.01" max="100000" step="0.01" value={pass} onChange={event => setPass(event.target.value)} /></span></label><p>Individual entry total: ${(rows.reduce((sum,row)=>sum+cents(row.price),0)/100).toFixed(2)}</p></>}
       <p>Families can preview prices and selections. Online event checkout is pending.</p>
-    </fieldset>}
+    </fieldset></>}
   </>;
 }

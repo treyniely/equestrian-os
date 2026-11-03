@@ -244,3 +244,6 @@ button.master-calendar-event{text-align:left;cursor:pointer;font:inherit}button.
 .offering-color-picker .offering-color-preview{display:flex;align-items:center;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid #e2e6e8}
 .offering-color-preview>small{font-size:12px}
 .offering-color-preview .pill.category-label{padding:var(--space-1) var(--space-3)}
+
+.event-unlimited-pass{margin-block:var(--space-4);background:#f0f6f1}
+.event-unlimited-pass .checkbox{margin-block:var(--space-2)}

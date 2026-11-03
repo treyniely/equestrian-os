@@ -19,7 +19,7 @@ export default function EventClassPreview({ pricing }: { pricing: EventClasses }
       <legend>Preview your entries</legend>
       {pricing.passPrice !== null && <label className="checkbox">
         <input type="checkbox" checked={usePass} onChange={event => setUsePass(event.target.checked)} />
-        <span>All Classes Pass · {usd.format(pricing.passPrice / 100)} <small>Save {usd.format(savings / 100)} on all {pricing.classes.length} classes</small></span>
+        <span>Unlimited pass · {usd.format(pricing.passPrice / 100)} <small>Save {usd.format(savings / 100)} on all {pricing.classes.length} classes</small></span>
       </label>}
       {pricing.classes.map(entry => <label className="checkbox" key={entry.name}>
         <input type="checkbox" checked={usePass || selected.includes(entry.name)} disabled={usePass} onChange={event => {

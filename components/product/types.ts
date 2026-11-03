@@ -9,6 +9,7 @@ export type Resource = {
         duration?: number;
         eventMode?: 'all-day' | 'timed';
         eventZone?: string;
+        eventClasses?: import('../../domain/event-classes').EventClasses;
         capacity?: number;
         price?: number;
         template?: string;

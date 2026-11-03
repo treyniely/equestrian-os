@@ -1,3 +1,4 @@
+import {eventClassesSchema} from '../domain/event-classes.ts';
 import {purgeRemovedOffering} from './offering-retention.ts';
 import {eventWindow} from '../domain/event-timing.ts';
 import {scheduleUndoWrite} from './schedule-undo.ts';
@@ -127,6 +128,11 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
                 if(event.start<=Date.now())throw Error('Choose an event date and start time in the future.');
             }
             details = { ...details, description:raw.description===undefined?(details.description??''):z.string().trim().max(800).parse(raw.description), template: t.id, duration: event?Math.round((event.end-event.start)/60000):z.coerce.number().int().min(previous?.details.eventMode?1:15).max(previous?.details.eventMode?1500:720).parse(raw.duration), capacity: t.id === 'private' ? 1 : z.coerce.number().int().min(1).max(100).parse(raw.capacity), mounted: z.boolean().parse(raw.mounted), price: z.coerce.number().int().min(0).max(10000000).parse(raw.price), access: z.enum(['paid', 'free', 'membership']).parse(raw.access), level: optionalId.parse(raw.level), discipline: optionalId.parse(raw.discipline) };
+            if(t.id==='event'&&raw.eventClasses!==undefined){
+                if(raw.eventClasses===null)delete details.eventClasses;
+                else details.eventClasses=eventClassesSchema.parse(raw.eventClasses);
+            }
+            if(details.eventClasses){details.access='paid';details.price=0;}
             if(event)details.eventMode=event.mode;
             if (details.level)
                 await resource(db, tenant, details.level, 'level');

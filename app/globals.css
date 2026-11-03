@@ -226,3 +226,9 @@ button.master-calendar-event{text-align:left;cursor:pointer;font:inherit}button.
 .deleted-offering-facts dt{font-weight:600}
 .deleted-offering-facts dd{margin:0;overflow-wrap:anywhere}
 @media(max-width:540px){.removed-offerings>.deleted-offering-row{flex-wrap:wrap}.deleted-offering-actions{flex-basis:100%}}
+
+.portal-event-classes{width:100%;max-width:320px;text-align:left}
+.portal-event-classes summary{cursor:pointer;font-weight:600;padding:10px 0}
+.portal-event-classes fieldset{min-width:0;padding:12px;border:1px solid #dce4de;border-radius:8px}
+.portal-event-classes label.checkbox{display:flex;align-items:flex-start;gap:8px;margin:8px 0}
+.portal-event-classes small{display:block}

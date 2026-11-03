@@ -72,3 +72,15 @@ test('relaunching a past event keeps the offering and original roster, and publi
  assert.equal(after.enrollments.filter((e:any)=>e.session===old.id).length,1);
  assert.equal(after.enrollments.filter((e:any)=>e.session===next.id).length,0);
 });
+
+test('class pricing persists, validates pass discounts and blocks ordinary event booking',async()=>{
+ const x=await setup();
+ const raw={action:'program',template:'event',name:'Halloween Show',duration:60,capacity:20,mounted:false,price:0,access:'paid',eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-10-31'},eventClasses:{classes:[{name:'Showmanship',price:1000},{name:'Barrels',price:1500}],passPrice:2000}};
+ await assert.rejects(applyAction(x.db,'a',{...raw,eventClasses:{...raw.eventClasses,passPrice:2600}}),/below the total/);
+ await applyAction(x.db,'a',raw);
+ const state=await readWorkspace(x.db,'a');
+ const offering=state.resources.find((item:any)=>item.name===raw.name);
+ assert.deepEqual(offering.details.eventClasses,raw.eventClasses);
+ const session=state.sessions.find((item:any)=>item.program===offering.id);
+ await assert.rejects(x.book(session.id),/enter classes/);
+});

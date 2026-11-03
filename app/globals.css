@@ -49,7 +49,7 @@
 /* Shared control spacing: admin, portal, dialogs and inline forms. */
 :root{--control-inset:13px;--control-height:46px;--select-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%2368746e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
 .app-shell select:not([multiple]),.family-portal select:not([multiple]){appearance:none;-webkit-appearance:none;padding-right:42px;padding-left:var(--control-inset);background-image:var(--select-chevron);background-repeat:no-repeat;background-position:right var(--control-inset) center;background-size:16px 16px;min-height:var(--control-height);max-width:100%;text-overflow:ellipsis}
-.app-shell .native-dialog input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),.app-shell .native-dialog select,.app-shell .native-dialog textarea{padding-left:var(--control-inset);padding-right:var(--control-inset);min-height:var(--control-height)}
+.app-shell .native-dialog input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=color]),.app-shell .native-dialog select,.app-shell .native-dialog textarea{padding-left:var(--control-inset-start,var(--control-inset));padding-right:var(--control-inset);min-height:var(--control-height)}
 .app-shell .native-dialog select:not([multiple]){padding-right:42px}
 .app-shell input[type=checkbox],.app-shell input[type=radio]{accent-color:#76572f}
 .native-dialog .close{width:36px;height:36px;right:14px;top:14px;display:grid;place-items:center;padding:0;line-height:1}
@@ -233,9 +233,9 @@ button.master-calendar-event{text-align:left;cursor:pointer;font:inherit}button.
 .portal-event-classes label.checkbox{display:flex;align-items:flex-start;gap:8px;margin:8px 0}
 .portal-event-classes small{display:block}
 
-.event-price-input{position:relative;display:block}
+.event-price-input{--control-inset-start:32px;position:relative;display:block}
 .event-price-input>span{position:absolute;inset-inline-start:13px;top:50%;transform:translateY(-50%);color:#536359;pointer-events:none}
-.event-price-input>input[type=number]{padding-inline-start:27px}
+
 
 .plan-allowance-editor .event-remove-class{margin-top:12px}
 

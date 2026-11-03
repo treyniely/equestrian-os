@@ -232,3 +232,9 @@ button.master-calendar-event{text-align:left;cursor:pointer;font:inherit}button.
 .portal-event-classes fieldset{min-width:0;padding:12px;border:1px solid #dce4de;border-radius:8px}
 .portal-event-classes label.checkbox{display:flex;align-items:flex-start;gap:8px;margin:8px 0}
 .portal-event-classes small{display:block}
+
+.event-price-input{position:relative;display:block}
+.event-price-input>span{position:absolute;inset-inline-start:13px;top:50%;transform:translateY(-50%);color:#536359;pointer-events:none}
+.event-price-input>input[type=number]{padding-inline-start:27px}
+
+.plan-allowance-editor .event-remove-class{margin-top:12px}

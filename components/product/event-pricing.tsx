@@ -35,13 +35,13 @@ export default function EventPricing({ initial, access, price }: {
       {rows.map((row, index) => <div key={row.id} className="plan-allowance-editor">
         <div className="form-grid">
           <label>Class {index + 1} name<input required maxLength={100} value={row.name} placeholder="Showmanship" onChange={event => update(row.id, { name: event.target.value })} /></label>
-          <label>Entry price · USD<input type="number" min="0.01" max="100000" step="0.01" required value={row.price} onChange={event => update(row.id, { price: event.target.value })} /></label>
+          <label>Entry price · USD<span className="event-price-input"><span aria-hidden="true">$</span><input type="number" min="0.01" max="100000" step="0.01" required value={row.price} onChange={event => update(row.id, { price: event.target.value })} /></span></label>
         </div>
-        {rows.length > 1 && <button type="button" className="secondary" onClick={() => setRows(current => current.filter(entry => entry.id !== row.id))}>Remove class</button>}
+        {rows.length > 1 && <button type="button" className="secondary event-remove-class" onClick={() => setRows(current => current.filter(entry => entry.id !== row.id))}>Remove class</button>}
       </div>)}
       <button type="button" className="secondary" disabled={rows.length >= 100} onClick={() => setRows(current => [...current, {id:crypto.randomUUID(), name:'', price:''}])}>Add class</button>
       <label className="checkbox"><input type="checkbox" checked={hasPass} onChange={event => setHasPass(event.target.checked)} />Offer an All Classes Pass</label>
-      {hasPass && <><label>Pass price · USD<input required type="number" min="0.01" max="100000" step="0.01" value={pass} onChange={event => setPass(event.target.value)} /></label><p>Individual entry total: ${(rows.reduce((sum,row)=>sum+cents(row.price),0)/100).toFixed(2)}</p></>}
+      {hasPass && <><label>Pass price · USD<span className="event-price-input"><span aria-hidden="true">$</span><input required type="number" min="0.01" max="100000" step="0.01" value={pass} onChange={event => setPass(event.target.value)} /></span></label><p>Individual entry total: ${(rows.reduce((sum,row)=>sum+cents(row.price),0)/100).toFixed(2)}</p></>}
       <p>Families can preview prices and selections. Online event checkout is pending.</p>
     </fieldset>}
   </>;

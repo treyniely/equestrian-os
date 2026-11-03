@@ -1,3 +1,4 @@
+import {purgeRemovedOffering} from './offering-retention.ts';
 import {eventWindow} from '../domain/event-timing.ts';
 import {scheduleUndoWrite} from './schedule-undo.ts';
 import {offeringColorMap,nextOfferingTone,isOfferingTone} from '../domain/offering-colors.ts';
@@ -87,9 +88,13 @@ export async function applyAction(db: D1Database, tenant: string, raw: Row) {
         if (created?.program !== offering.id) throw Error('This event already has an upcoming or ongoing date.');
         return;
     }
+    if (action === 'purgeOffering') {
+        await purgeRemovedOffering(db, tenant, id.parse(raw.id));
+        return;
+    }
     if(action==='deleteOffering'||action==='restoreOffering'){
         const offering=await resource(db,tenant,id.parse(raw.id),'lesson'),archived=action==='deleteOffering';
-        await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?)) WHERE tenant=? AND id=? AND kind='lesson'").bind(JSON.stringify(archived),tenant,offering.id),log((archived?'Removed offering: ':'Restored offering: ')+offering.name)]);
+        await db.batch([db.prepare("UPDATE resources SET details=json_set(details,'$.archived',json(?),'$.removedAt',CASE WHEN ? THEN coalesce(json_extract(details,'$.removedAt'),?) ELSE NULL END) WHERE tenant=? AND id=? AND kind='lesson'").bind(JSON.stringify(archived),Number(archived),Date.now(),tenant,offering.id),log((archived?'Removed offering: ':'Restored offering: ')+offering.name)]);
         return;
     }
     if (action === 'resource' || action === 'program') {

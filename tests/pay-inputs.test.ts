@@ -1,0 +1,56 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture} from './helpers.ts';
+import {roleGrants} from '../domain/permissions.ts';
+import {changePayInputs,readPayInputs} from '../server/pay-inputs.ts';
+
+test('approved work is tenant scoped, audited, and frozen in a repeatable export',async()=>{
+    const {db,sql}=fixture();
+    sql.exec("INSERT INTO team_access VALUES('staff','a','user','staff@example.invalid','Staff','instructor','{}','active','hash',0,0)");
+    const owner=roleGrants('owner');
+    const time=roleGrants('manager');
+    time.timeApproval={view:true,manage:true};
+    const period={start:'2030-01-01',end:'2030-01-15'};
+    const draft={action:'save',staff:'staff',day:'2030-01-04',minutes:95,lessons:2,note:'Reviewed actual work'};
+    const publish={action:'export',...period,reviewed:'[]'};
+    await assert.rejects(readPayInputs(db,'a',roleGrants('instructor'),period),/access/);
+    await assert.rejects(changePayInputs(db,'b',owner,'other',draft),/active team member/);
+    await changePayInputs(db,'a',time,'manager',draft);
+    const {entries:[entry]}=await readPayInputs(db,'a',time,period);
+    assert.ok(entry);
+    await assert.rejects(changePayInputs(db,'a',time,'manager',publish),/Payroll management/);
+    publish.reviewed=JSON.stringify([[entry.id,0]]);
+    await assert.rejects(changePayInputs(db,'a',owner,'owner',publish),/pay_period_unavailable/);
+    const approval={action:'approve',id:entry.id,revision:0};
+    await assert.rejects(changePayInputs(db,'b',owner,'other',approval),/changed/);
+    await changePayInputs(db,'a',time,'manager',approval);
+    await assert.rejects(changePayInputs(db,'a',time,'manager',approval),/changed/);
+    await assert.rejects(changePayInputs(db,'a',owner,'owner',publish),/changed after review/);
+    publish.reviewed=JSON.stringify([[entry.id,1]]);
+    const rows=await changePayInputs(db,'a',owner,'owner',publish);
+    assert.deepEqual(rows,[{staff:'staff',name:'Staff',day:'2030-01-04',minutes:95,lessons:2}]);
+    sql.exec("UPDATE team_access SET name='Changed' WHERE id='staff'");
+    assert.deepEqual(await changePayInputs(db,'a',owner,'owner',publish),rows);
+    await assert.rejects(changePayInputs(db,'a',time,'manager',{...draft,id:entry.id,revision:1}),/pay_period_locked/);
+    await assert.rejects(changePayInputs(db,'a',time,'manager',draft),/pay_period_locked/);
+    assert.deepEqual((await readPayInputs(db,'b',owner,period)).entries,[]);
+    assert.equal(sql.prepare('SELECT count(*) AS n FROM work_audit').get()?.n,2);
+});
+
+test('paid roster workers can record approved work without a software account',async()=>{
+    const {db}=fixture();
+    const {saveBarnWorker,readBarnWorkers}=await import('../server/barn-workers.ts');
+    const base={id:crypto.randomUUID(),updated:0,name:'Paid intern',email:'',role:'intern',classification:'employee',commitment:'part-time',basis:'hourly',rate:1800,onboarding:'new',providerRef:''};
+    await saveBarnWorker(db,'a','owner',base);
+    const unpaid={...base,id:crypto.randomUUID(),name:'Unpaid intern',classification:'unpaid',basis:'unpaid',rate:0};
+    await saveBarnWorker(db,'a','owner',unpaid);
+    assert.deepEqual(await readBarnWorkers(db,'b'),[]);
+    const grants=roleGrants('owner');
+    const period={start:'2030-01-01',end:'2030-01-15'};
+    const {staff}=await readPayInputs(db,'a',grants,period);
+    assert.deepEqual(staff.map(row=>({...row})),[{id:base.id,name:base.name}]);
+    const input={action:'save',staff:base.id,day:period.start,minutes:45,lessons:0,note:'Barn work'};
+    await assert.rejects(changePayInputs(db,'a',grants,'owner',{...input,staff:unpaid.id}),/active team member/);
+    await changePayInputs(db,'a',grants,'owner',input);
+    assert.equal((await readPayInputs(db,'a',grants,period)).entries[0]?.name,base.name);
+});

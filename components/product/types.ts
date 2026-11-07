@@ -6,6 +6,7 @@ export type Resource = {
     details: {
         buckets?:import('../../domain/plans').PlanDefinition['buckets'];kind?:'monthly'|'pack';validDays?:number;scope?:'rider'|'family';contactInfo?:import('../../domain/academy-contact').AcademyContact;ageBand?:import('../../domain/rider-intake').RiderIntake['ageBand'];experience?:import('../../domain/rider-intake').RiderIntake['experience'];goals?:string;archived?:boolean;brandColor?:string;cancellationHours?:number;
         level?: string;
+        levelAppearance?:import('../../domain/category-colors').LevelAppearance;
         duration?: number;
         eventMode?: 'all-day' | 'timed';
         eventZone?: string;
@@ -52,7 +53,7 @@ export type State = {
     onboarding?:import('../../domain/onboarding').SetupSummary;
     onlineMemberships?:string[];booking_changes?:{id:string;rider_name:string;customer_name:string;kind:string;reason:string;created:number;read_at:number|null;previous_start:number;next_start:number|null}[];
     rider_horses?:{session:string;rider:string;horse:string;reason:string}[];
-    academyInfo?:{name:string;timezone:string;availability?:import('../../domain/availability').Availability};
+    academyInfo?:{levels?:import('../../domain/category-colors').LevelLabel[];name:string;timezone:string;brandColor?:string;photoId?:string;availability?:import('../../domain/availability').Availability};
     intern_attendance?:{intern:string;date:string;status:string}[];barn_tasks?:{id:string;date:string;title:string;intern:string|null;session:string|null;due:number;status:string;updated:number;generated_key?:string;sessionCanceled?:boolean}[];
     customer_groups?:{customer:string;group_id:string}[];
     team?:{id:string;name:string;email:string;role:string;permissions:string;status:string}[];permissions?:import('../../domain/permissions').Grants;currentRole?:string;inviteUrl?:string;

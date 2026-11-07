@@ -37,7 +37,7 @@ test('an offering cap leaves shared credits available for another offering and r
 
 test('an all-day event publishes once and allows family RSVP outside ordinary lesson hours',async()=>{
  const x=await setup();
- const event={action:'program',name:'Fall Barn Day',template:'event',capacity:5,mounted:false,access:'free',price:0,eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-11-09'}};
+ const event={action:'program',name:'Fall Barn Day',template:'event',capacity:5,mounted:false,access:'free',price:0,eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-11-09',start:'09:30'}};
  await applyAction(x.db,'a',event);
  await applyAction(x.db,'a',event);
  const state=await readWorkspace(x.db,'a');
@@ -45,9 +45,24 @@ test('an all-day event publishes once and allows family RSVP outside ordinary le
  const sessions=state.sessions.filter((s:any)=>s.program===program.id);
  assert.equal(sessions.length,1);
  assert.equal(program.details.eventMode,'all-day');
- assert.equal(sessions[0].end-sessions[0].start,86400000);
+ assert.equal(sessions[0].start,Date.parse('2030-11-09T09:30:00Z'));
+ assert.equal(sessions[0].end,Date.parse('2030-11-10T00:00:00Z'));
  await x.book(sessions[0].id);
  assert.equal((await portalState(x.db,'a',user)).registrations[0].session,sessions[0].id);
+});
+
+test('an event can remove its spot limit without changing its bookings',async()=>{
+ const x=await setup();
+ const event={action:'program',name:'Open Barn Day',template:'event',capacity:1,mounted:false,access:'free',price:0,eventRequestKey:crypto.randomUUID(),eventTiming:{mode:'all-day',date:'2030-11-09'}};
+ await applyAction(x.db,'a',event);
+ const state=await readWorkspace(x.db,'a');
+ const program=state.resources.find((r:any)=>r.name===event.name);
+ const session=state.sessions.find((s:any)=>s.program===program.id);
+ await x.book(session.id);
+ await applyAction(x.db,'a',{...event,id:program.id,duration:1440,eventTiming:undefined,capacity:null,unlimitedCapacity:true});
+ const portal=await portalState(x.db,'a',user);
+ assert.equal(portal.sessions.find((s:any)=>s.id===session.id)?.unlimited,true);
+ assert.equal(portal.registrations[0].session,session.id);
 });
 
 test('relaunching a past event keeps the offering and original roster, and publishes one new date',async()=>{
@@ -83,4 +98,36 @@ test('class pricing persists, validates pass discounts and blocks ordinary event
  assert.deepEqual(offering.details.eventClasses,raw.eventClasses);
  const session=state.sessions.find((item:any)=>item.program===offering.id);
  await assert.rejects(x.book(session.id),/enter classes/);
+});
+
+test('calendar quick booking commits the rider and session together and requires membership credit',async()=>{
+ const x=await setup();
+ const raw={action:'session',program:x.id('Private'),trainer:x.id('trainer'),horses:[],rider:x.rider,start:Date.parse('2030-11-04T09:00Z'),requestKey:'quick-book'};
+ await assert.rejects(applyAction(x.db,'a',raw),/allowance_unavailable/);
+ assert.equal((await readWorkspace(x.db,'a')).sessions.length,0);
+ await planAction(x.db,'a',x.grant);
+ await applyAction(x.db,'a',raw);
+ await applyAction(x.db,'a',raw);
+ const state=await readWorkspace(x.db,'a');
+ assert.equal(state.sessions.length,1);
+ assert.equal(state.enrollments.length,1);
+ assert.equal(state.enrollments[0].rider,x.rider);
+ assert.equal((await readBenefits(x.db,'a',x.customer)).find(b=>b.label==='Riding lessons')?.used,1);
+});
+
+test('quick booking adds a named rider atomically and retries without duplicating their profile',async()=>{
+ const x=await setup({paid:true});
+ const raw={action:'session',program:x.id('Private'),trainer:x.id('trainer'),horses:[],newRiderName:'New rider',start:Date.parse('2030-11-04T09:00Z'),requestKey:'quick-new-rider'};
+ await applyAction(x.db,'a',raw);
+ await applyAction(x.db,'a',raw);
+ const state=await readWorkspace(x.db,'a');
+ const riders=state.resources.filter((r:any)=>r.kind==='rider'&&r.name==='New rider');
+ assert.equal(riders.length,1);
+ assert.equal(riders[0].details.level,'Beginner');
+ assert.equal(state.enrollments[0].rider,riders[0].id);
+ await assert.rejects(applyAction(x.db,'a',{...raw,newRiderName:'Conflicted rider',requestKey:'conflict'}),/resource_conflict/);
+ assert.equal((await readWorkspace(x.db,'a')).resources.some((r:any)=>r.name==='Conflicted rider'),false);
+ const restricted=await setup();
+ await assert.rejects(applyAction(restricted.db,'a',{...raw,program:restricted.id('Private'),trainer:restricted.id('trainer')}),/allowance_unavailable/);
+ assert.equal((await readWorkspace(restricted.db,'a')).resources.some((r:any)=>r.name==='New rider'),false);
 });

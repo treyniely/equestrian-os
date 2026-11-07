@@ -51,3 +51,48 @@ export const horseHealthFiles=sqliteTable('horse_health_files',{id:text('id').pr
 export const horseRecordAI=sqliteTable('horse_record_ai',{record:text('record').primaryKey(),tenant:text('tenant').notNull(),horse:text('horse').notNull(),state:text('state').notNull(),origin:text('origin').notNull(),token:text('token').notNull(),data:text('data').notNull(),searchText:text('search_text').notNull(),error:text('error').notNull(),updated:integer('updated').notNull()},t=>[index('horse_ai_scope').on(t.tenant,t.horse)]);
 
 export const academyOnboarding=sqliteTable('academy_onboarding',{tenant:text('tenant').primaryKey(),completedAt:integer('completed_at').notNull()});
+
+export const workEntries = sqliteTable('work_entries', {
+    id: text('id').primaryKey(),
+    tenant: text('tenant').notNull(),
+    staff: text('staff').notNull(),
+    day: text('day').notNull(),
+    minutes: integer('minutes').notNull(),
+    lessons: integer('lessons').notNull(),
+    note: text('note').notNull(),
+    approvedBy: text('approved_by'),
+    revision: integer('revision').notNull(),
+}, t => [index('work_entry_period').on(t.tenant,t.day)]);
+export const payExports = sqliteTable('pay_exports', {
+    id: text('id').primaryKey(),
+    tenant: text('tenant').notNull(),
+    start: text('start').notNull(),
+    end: text('end').notNull(),
+    snapshot: text('snapshot').notNull(),
+    actor: text('actor').notNull(),
+    created: integer('created').notNull(),
+}, t => [uniqueIndex('pay_export_period').on(t.tenant,t.start,t.end)]);
+export const workAudit = sqliteTable('work_audit', {
+    id: text('id').primaryKey(),
+    tenant: text('tenant').notNull(),
+    entry: text('entry').notNull(),
+    actor: text('actor').notNull(),
+    created: integer('created').notNull(),
+    snapshot: text('snapshot').notNull(),
+});
+
+export const barnWorkers = sqliteTable('barn_workers', {
+    id: text('id').primaryKey(),
+    tenant: text('tenant').notNull(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    role: text('role').notNull(),
+    classification: text('classification').notNull(),
+    commitment: text('commitment').notNull(),
+    basis: text('basis').notNull(),
+    rate: integer('rate').notNull(),
+    onboarding: text('onboarding').notNull(),
+    providerRef: text('provider_ref').notNull(),
+    updatedBy: text('updated_by').notNull(),
+    updated: integer('updated').notNull(),
+}, t=>[index('barn_workers_tenant').on(t.tenant)]);

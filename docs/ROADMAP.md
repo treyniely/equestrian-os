@@ -52,3 +52,5 @@ Release 0.29: ephemeral five-second live-schedule Undo; adult-first customer cre
 
 - 0.30: upload-first horse records, scoped keyword/synonym search and provider-backed extraction/query interpretation (runtime key pending); independently flaggable staff trainer-preference View/Manage access, default off for trainers and interns.
 - 0.31: audited essential/optional academy setup, durable one-time completion/review/celebration, and academy-local operational overview. Live payments, delivery and pilot readiness remain separate gates.
+
+Release 0.35: audit of every existing admin tab and customer workflow; dedicated prepared communications, independent operational preferences, targeted private learning with development MP4/PDF upload, and provider-contract setup reviews. WORKFLOW-AUDIT-0.35.md is the current capability/gap baseline. PROVIDER-SETUP.md lists the live integration gates. Sandbox validation, durable dispatch, optimized Stream and embedded payroll remain pending.

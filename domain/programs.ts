@@ -25,10 +25,10 @@ export type Customer = {
     sms_consent: number;
 };
 export function inSegment(c: Customer, segment: string, memberIds: string[] = []) { switch (segment) {
-    case 'Needs attention': return ['failed', 'overdue'].includes(c.billing);
     case 'Active': return customerStatus(c.billing)==='active';
     case 'Active members': return memberIds.includes(c.id);
     case 'Trials & inquiries': return ['inquiry', 'trial'].includes(c.stage);
+    case 'Needs attention':
     case 'Inactive': return customerStatus(c.billing)==='inactive';
     default: return true;
 } }

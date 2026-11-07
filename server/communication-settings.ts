@@ -1,5 +1,8 @@
-import {communicationSettingsSchema,readCommunicationSettings} from '../domain/communication-settings.ts';
+import {communicationSettingsSchema,readCommunicationSettings,defaultCommunicationSettings} from '../domain/communication-settings.ts';
 const settingsId=(tenant:string)=>'communication-settings:'+tenant;
+export function defaultCommunicationSetupWrite(db:D1Database,tenant:string){
+ return db.prepare("INSERT OR IGNORE INTO resources(id,tenant,kind,name,details) VALUES(?,?,'communication-settings','Communication setup',?)").bind(settingsId(tenant),tenant,JSON.stringify({...defaultCommunicationSettings(),revision:1}));
+}
 export async function getCommunicationSettings(db:D1Database,tenant:string){const record=await db.prepare("SELECT details FROM resources WHERE tenant=? AND id=? AND kind='communication-settings'").bind(tenant,settingsId(tenant)).first<{details:string}>();return readCommunicationSettings(record?JSON.parse(record.details):undefined);}
 export async function saveCommunicationSettings(db:D1Database,tenant:string,input:unknown){
  const settings=communicationSettingsSchema.parse(input),next={...settings,revision:settings.revision+1};

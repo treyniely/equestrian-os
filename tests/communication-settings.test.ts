@@ -19,3 +19,15 @@ test('draft editing cannot bypass revoked consent or schedule in the past',async
 
 import {saveLearning,prepareLearningAnnouncement,learningItems} from '../server/learning.ts';
 test('learning announcement edits resolve the current audience instead of trusting its old snapshot',async()=>{const {db,customer}=await draftFixture(),grants=roleGrants('owner');await applyAction(db,'a',{action:'resource',kind:'rider',name:'Rider',customer,level:'Beginner'});const resource=crypto.randomUUID(),draft=crypto.randomUUID();await saveLearning(db,'a',{id:resource,updated:0,title:'Guide',kind:'video',url:'https://example.invalid/guide',published:true,audience:{mode:'everyone',levels:[],groups:[],riders:[]}});await prepareLearningAnnouncement(db,'a',{id:resource,requestKey:draft,channel:'email',subject:'New guide',message:'Read the guide'});let preview=await changeCommunicationDraft(db,'a',grants,{action:'previewDraft',id:draft,channel:'email'});assert.equal((preview as any).eligible.length,1);const item=(await learningItems(db,'a'))[0];await saveLearning(db,'a',{...item,updated:item.updated,audience:{mode:'selected',levels:['Advanced'],groups:[],riders:[]}});preview=await changeCommunicationDraft(db,'a',grants,{action:'previewDraft',id:draft,channel:'email'});assert.equal((preview as any).eligible.length,0);const restricted=roleGrants('owner');restricted.riders={view:false,manage:false};await assert.rejects(changeCommunicationDraft(db,'a',restricted,{action:'previewDraft',id:draft,channel:'email'}),/Rider viewing/);});
+
+test('account activation seeds defaults once and preserves customized automation settings',async()=>{
+ const {db}=fixture();const {defaultCommunicationSetupWrite}=await import('../server/communication-settings.ts');
+ await db.batch([defaultCommunicationSetupWrite(db,'a')]);
+ const settings=await getCommunicationSettings(db,'a');assert.equal(settings.revision,1);
+ assert.equal(settings.rules.find(r=>r.id==='bookingConfirmed')!.prepared,true);
+ const changed=await saveCommunicationSettings(db,'a',{...settings,rules:settings.rules.map(r=>r.id==='lessonReminder'?{...r,prepared:false,message:'Custom academy reminder'}:r)});
+ await db.batch([defaultCommunicationSetupWrite(db,'a')]);
+ assert.deepEqual(await getCommunicationSettings(db,'a'),changed);
+ assert.equal((await getCommunicationSettings(db,'b')).revision,0);
+ assert.equal((await db.prepare('SELECT id FROM drafts').all()).results.length,0);
+});

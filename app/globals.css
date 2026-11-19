@@ -344,7 +344,7 @@ dialog input[name="capacity"]:disabled{background:#eef0f1;color:#616c72;cursor:n
 .customer-roster .customer-filters-compact{grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr)) auto}
 .customer-roster .customer-filters-compact .customer-search-field{grid-column:auto}
 .customer-filter-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
-.customer-filter-actions button{min-height:var(--control-height,46px);width:auto;padding-inline:12px}
+.customer-filters .customer-filter-actions button{box-sizing:border-box;height:var(--control-height,46px);min-height:var(--control-height,46px);width:auto;padding-block:0;padding-inline:12px}
 .customer-roster .customer-filters-compact input,.customer-roster .customer-filters-compact select{min-height:var(--control-height,46px)}
 .customer-applied-filters{display:flex;flex-wrap:wrap;gap:8px;grid-column:1/-1}
 .customer-applied-filters button{white-space:normal;overflow-wrap:anywhere}

@@ -10,9 +10,23 @@ Persistent resources, private lesson bookings, database-level conflict preventio
 See docs/ROADMAP.md and docs/ARCHITECTURE.md. Follow AGENTS.md before changes.
 
 ## Development
-Node 24; install with `node scripts/install-ci.mjs` using the retained lockfile/toolchain. Run `npm run dev`. The Sites runtime supplies authenticated identity; unauthenticated API requests return 401. Never introduce an authentication bypass into hosted code.
+Use Node 24 and pnpm 11.25.0. Install dependencies from the committed lockfile and start the development server.
 
-Checks: `npx tsc --noEmit`, `node --experimental-strip-types --test tests/scheduling.test.ts`, `python tests/database.py`, `npm run build`.
+```sh
+pnpm install --frozen-lockfile
+npm run dev
+```
+
+The Sites runtime supplies authenticated identity; unauthenticated API requests return 401. Never introduce an authentication bypass into hosted code.
+
+The [GitHub Actions release validation workflow](.github/workflows/release-validation.yml) uses the same Node and pnpm versions and frozen-lockfile install. After installing dependencies, run the same checks locally.
+
+```sh
+npm run check:release
+python tests/database.py
+```
+
+The release script runs TypeScript checking, the TypeScript test suite, and the production build. The Python command separately tests database migrations. Follow the [release QA guide](docs/RELEASE-QA.md) for visual and interaction checks.
 
 D1 schema migrations live in drizzle/. For local D1 setup, build first then run Wrangler against dist/server/wrangler.json with the migration file and local persistence. Hosted migrations are applied through the Sites packaging workflow.
 
